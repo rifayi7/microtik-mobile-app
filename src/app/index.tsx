@@ -23,6 +23,8 @@ import {
   DollarSign,
   Wifi,
   ChevronRight,
+  Edit2,
+  X,
 } from "lucide-react-native";
 import { useGateway } from "../contexts/gateway-context";
 import { type MikrotikRouterConfig } from "../lib/api-client";
@@ -37,6 +39,7 @@ export default function GatewayScreen() {
     loading,
     setGatewayUrl,
     addRouter,
+    updateRouter,
     deleteRouter,
     connectRouter,
     disconnectRouter,
@@ -52,6 +55,7 @@ export default function GatewayScreen() {
   const [currency, setCurrency] = useState("AED");
   const [connectingId, setConnectingId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   useEffect(() => {
     setInputUrl(gatewayUrl);
@@ -84,15 +88,32 @@ export default function GatewayScreen() {
     }
 
     try {
-      await addRouter({
-        sessionName: sessionName.trim(),
-        host: host.trim(),
-        port: Number(port.trim()),
-        username: username.trim(),
-        password: password,
-        useTls,
-        currency: currency.trim() || "AED",
-      });
+      if (editingId) {
+        // Update existing router
+        await updateRouter({
+          id: editingId,
+          sessionName: sessionName.trim(),
+          host: host.trim(),
+          port: Number(port.trim()),
+          username: username.trim(),
+          password: password,
+          useTls,
+          currency: currency.trim() || "AED",
+        });
+        Alert.alert("Success", "Router config updated");
+      } else {
+        // Add new router
+        await addRouter({
+          sessionName: sessionName.trim(),
+          host: host.trim(),
+          port: Number(port.trim()),
+          username: username.trim(),
+          password: password,
+          useTls,
+          currency: currency.trim() || "AED",
+        });
+        Alert.alert("Success", "Router config added");
+      }
 
       // Reset Form
       setSessionName("");
@@ -103,10 +124,34 @@ export default function GatewayScreen() {
       setUseTls(false);
       setCurrency("AED");
       setIsAdding(false);
-      Alert.alert("Success", "Router config added");
-    } catch {
-      Alert.alert("Error", "Failed to add router");
+      setEditingId(null);
+    } catch (err) {
+      Alert.alert("Error", editingId ? "Failed to update router" : "Failed to add router");
     }
+  };
+
+  const handleEditRouter = (routerConfig: MikrotikRouterConfig) => {
+    setEditingId(routerConfig.id);
+    setSessionName(routerConfig.sessionName);
+    setHost(routerConfig.host);
+    setPort(String(routerConfig.port));
+    setUsername(routerConfig.username);
+    setPassword(routerConfig.password || "");
+    setUseTls(routerConfig.useTls);
+    setCurrency(routerConfig.currency || "AED");
+    setIsAdding(true);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setSessionName("");
+    setHost("");
+    setPort("8728");
+    setUsername("admin");
+    setPassword("");
+    setUseTls(false);
+    setCurrency("AED");
+    setIsAdding(false);
   };
 
   const handleConnect = async (id: string) => {
@@ -114,12 +159,17 @@ export default function GatewayScreen() {
     try {
       const success = await connectRouter(id);
       if (success) {
-        router.replace("/(dashboard)");
+        // Add a small delay to ensure state updates propagate
+        setTimeout(() => {
+          router.replace("/(dashboard)");
+        }, 300);
+      } else {
+        Alert.alert("Connection Failed", "Unable to establish connection. Please try again.");
       }
     } catch (err) {
       Alert.alert(
         "Connection Failed",
-        err instanceof Error ? err.message : "Could not connect to router. Check credentials and Next.js status."
+        err instanceof Error ? err.message : "Could not connect to router. Check credentials and gateway status."
       );
     } finally {
       setConnectingId(null);
@@ -186,7 +236,14 @@ export default function GatewayScreen() {
 
         {isAdding && (
           <View style={[styles.card, styles.formCard]}>
-            <Text style={styles.cardTitle}>Add Router Configuration</Text>
+            <View style={styles.formHeader}>
+              <Text style={styles.cardTitle}>
+                {editingId ? "Edit Router Configuration" : "Add Router Configuration"}
+              </Text>
+              <TouchableOpacity onPress={handleCancelEdit}>
+                <X size={20} color="#f5a623" />
+              </TouchableOpacity>
+            </View>
 
             <Text style={styles.label}>Session Name *</Text>
             <TextInput
@@ -277,12 +334,14 @@ export default function GatewayScreen() {
             <View style={styles.formActions}>
               <TouchableOpacity
                 style={styles.cancelButton}
-                onPress={() => setIsAdding(false)}
+                onPress={handleCancelEdit}
               >
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.submitButton} onPress={handleAddRouter}>
-                <Text style={styles.submitButtonText}>Save Config</Text>
+                <Text style={styles.submitButtonText}>
+                  {editingId ? "Update Config" : "Save Config"}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -326,6 +385,13 @@ export default function GatewayScreen() {
                 </View>
 
                 <View style={styles.routerActions}>
+                  <TouchableOpacity
+                    style={styles.editBtn}
+                    onPress={() => handleEditRouter(item)}
+                  >
+                    <Edit2 size={16} color="#f5a623" />
+                  </TouchableOpacity>
+
                   <TouchableOpacity
                     style={styles.deleteBtn}
                     onPress={() => {
@@ -499,6 +565,12 @@ const styles = StyleSheet.create({
   formCard: {
     borderColor: "#f5a623",
   },
+  formHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
   label: {
     color: "#aaa",
     fontSize: 12,
@@ -641,6 +713,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+  },
+  editBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#2d2416",
+    justifyContent: "center",
+    alignItems: "center",
   },
   deleteBtn: {
     width: 36,

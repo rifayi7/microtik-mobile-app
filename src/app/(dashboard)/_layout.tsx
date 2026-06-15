@@ -7,6 +7,7 @@ import {
   Wifi,
   ScrollText,
   LogOut,
+  ShoppingCart,
 } from "lucide-react-native";
 import { useGateway } from "../../contexts/gateway-context";
 
@@ -82,6 +83,13 @@ export default function DashboardLayout() {
         options={{
           title: "Profiles",
           tabBarIcon: ({ color, size }) => <ScrollText size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="recharge"
+        options={{
+          title: "Recharge",
+          tabBarIcon: ({ color, size }) => <ShoppingCart size={size} color={color} />,
         }}
       />
     </Tabs>
