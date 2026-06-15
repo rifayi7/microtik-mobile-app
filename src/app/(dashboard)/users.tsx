@@ -1,20 +1,19 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { Search, ShieldAlert, User } from "lucide-react-native";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  StyleSheet,
-  Text,
-  View,
-  FlatList,
-  TextInput,
-  TouchableOpacity,
-  ActivityIndicator,
-  SafeAreaView,
-  StatusBar,
-  ScrollView,
+    ActivityIndicator,
+    FlatList,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
-import { Search, Filter, RefreshCw, User, ShieldAlert } from "lucide-react-native";
 import { useGateway } from "../../contexts/gateway-context";
 import { fetchFromGateway } from "../../lib/api-client";
-import { formatDate } from "../../lib/format";
 
 interface HotspotUser {
   id: string;
