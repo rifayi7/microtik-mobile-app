@@ -1,31 +1,27 @@
-import React, { useState, useEffect } from "react";
-import {
-  StyleSheet,
-  Text,
-  View,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  Switch,
-  ActivityIndicator,
-  Alert,
-  SafeAreaView,
-  StatusBar,
-} from "react-native";
 import { useRouter } from "expo-router";
 import {
-  Server,
-  Plus,
-  Trash2,
-  Check,
-  Globe,
-  Lock,
-  DollarSign,
-  Wifi,
-  ChevronRight,
-  Edit2,
-  X,
+    Check,
+    ChevronRight,
+    Edit2,
+    Plus,
+    Trash2,
+    Wifi,
+    X
 } from "lucide-react-native";
+import { useEffect, useState } from "react";
+import {
+    ActivityIndicator,
+    Alert,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Switch,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from "react-native";
 import { useGateway } from "../contexts/gateway-context";
 import { type MikrotikRouterConfig } from "../lib/api-client";
 

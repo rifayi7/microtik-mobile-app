@@ -1,14 +1,13 @@
-import React from "react";
 import { Tabs, useRouter } from "expo-router";
-import { useColorScheme, TouchableOpacity, Text, StyleSheet } from "react-native";
 import {
-  LayoutDashboard,
-  Users,
-  Wifi,
-  ScrollText,
-  LogOut,
-  ShoppingCart,
+    LayoutDashboard,
+    LogOut,
+    ScrollText,
+    ShoppingCart,
+    Users,
+    Wifi,
 } from "lucide-react-native";
+import { StyleSheet, Text, TouchableOpacity } from "react-native";
 import { useGateway } from "../../contexts/gateway-context";
 
 export default function DashboardLayout() {

@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   SafeAreaView,
   StatusBar,
+  ScrollView,
 } from "react-native";
 import { Search, Filter, RefreshCw, User, ShieldAlert } from "lucide-react-native";
 import { useGateway } from "../../contexts/gateway-context";
@@ -42,6 +43,7 @@ export default function UsersScreen() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "disabled" | "expired">("all");
+  const [dayFilter, setDayFilter] = useState<number | "all">("all");
 
   const loadUsers = useCallback(async (isRefresh = false) => {
     if (!activeRouter) return;
@@ -72,6 +74,31 @@ export default function UsersScreen() {
     void loadUsers(true);
   };
 
+  function parseValidityDays(profile: string | undefined): number {
+    const target = String(profile || "").trim();
+    const match = target.match(/(\d+)\s*[-_]?\s*days?/i);
+    if (match) return Number(match[1]);
+    const numeric = Number(target.replace(/[^0-9]/g, ""));
+    return Number.isFinite(numeric) && numeric > 0 ? numeric : 0;
+  }
+
+  const activeDays = useMemo(() => {
+    return Array.from(
+      new Set(
+        users
+          .filter((user) => user.status === "active")
+          .map((user) => parseValidityDays(user.profile))
+          .filter((days) => days > 0)
+      )
+    ).sort((a, b) => a - b);
+  }, [users]);
+
+  useEffect(() => {
+    if (statusFilter !== "active") {
+      setDayFilter("all");
+    }
+  }, [statusFilter]);
+
   const filteredUsers = useMemo(() => {
     return users.filter((u) => {
       const matchesSearch =
@@ -80,10 +107,14 @@ export default function UsersScreen() {
         (u.comment ?? "").toLowerCase().includes(search.toLowerCase());
 
       const matchesStatus = statusFilter === "all" || u.status === statusFilter;
+      const matchesDay =
+        statusFilter !== "active" || dayFilter === "all"
+          ? true
+          : parseValidityDays(u.profile) === dayFilter;
 
-      return matchesSearch && matchesStatus;
+      return matchesSearch && matchesStatus && matchesDay;
     });
-  }, [users, search, statusFilter]);
+  }, [users, search, statusFilter, dayFilter]);
 
   const getStatusStyle = (status: string) => {
     switch (status) {
@@ -189,6 +220,53 @@ export default function UsersScreen() {
         ))}
       </View>
 
+      {statusFilter === "active" && activeDays.length > 0 && (
+        <View style={styles.dayFilterRow}>
+          <Text style={styles.dayFilterLabel}>Days:</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.dayFilterScroll}
+          >
+            <TouchableOpacity
+              style={[
+                styles.dayFilterChip,
+                dayFilter === "all" && styles.activeDayFilterChip,
+              ]}
+              onPress={() => setDayFilter("all")}
+            >
+              <Text
+                style={[
+                  styles.dayFilterText,
+                  dayFilter === "all" && styles.activeDayFilterText,
+                ]}
+              >
+                All
+              </Text>
+            </TouchableOpacity>
+            {activeDays.map((days) => (
+              <TouchableOpacity
+                key={days}
+                style={[
+                  styles.dayFilterChip,
+                  dayFilter === days && styles.activeDayFilterChip,
+                ]}
+                onPress={() => setDayFilter(days)}
+              >
+                <Text
+                  style={[
+                    styles.dayFilterText,
+                    dayFilter === days && styles.activeDayFilterText,
+                  ]}
+                >
+                  {days} Days
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
       {loading && users.length === 0 ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color="#f5a623" />
@@ -273,6 +351,45 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   activeFilterTabText: {
+    color: "#121212",
+  },
+  dayFilterRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#2a2a2a",
+  },
+  dayFilterLabel: {
+    color: "#888",
+    fontSize: 12,
+    fontWeight: "bold",
+  },
+  dayFilterScroll: {
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "center",
+  },
+  dayFilterChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    backgroundColor: "#1e1e1e",
+    borderWidth: 1,
+    borderColor: "#2a2a2a",
+  },
+  activeDayFilterChip: {
+    backgroundColor: "#f5a623",
+    borderColor: "#f5a623",
+  },
+  dayFilterText: {
+    color: "#888",
+    fontSize: 12,
+    fontWeight: "bold",
+  },
+  activeDayFilterText: {
     color: "#121212",
   },
   listContainer: {

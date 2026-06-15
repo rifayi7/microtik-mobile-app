@@ -1,19 +1,19 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { Check, Clock, CreditCard, Phone } from "lucide-react-native";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  StyleSheet,
-  Text,
-  View,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  ActivityIndicator,
-  Alert,
-  SafeAreaView,
-  StatusBar,
+    ActivityIndicator,
+    Alert,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { useGateway } from "../../contexts/gateway-context";
 import { fetchFromGateway } from "../../lib/api-client";
-import { CreditCard, Phone, Clock, Check } from "lucide-react-native";
 
 interface VoucherCode {
   id: string;
@@ -25,20 +25,29 @@ interface VoucherCode {
   usedAt?: string;
 }
 
-interface HotspotProfile {
-  name: string;
-  validity: number;
-  price?: number;
-  bandwidth?: string;
+interface HotspotUser {
+  id: string;
+  username: string;
+  profile: string;
+  status: "active" | "disabled" | "expired";
+  createdAt: string;
 }
 
 interface RechargeData {
   vouchers: VoucherCode[];
-  profiles: HotspotProfile[];
   currency: string;
 }
 
-const PLAN_DAYS = [7, 15, 30, 60];
+function parseValidityDays(value: string | undefined): number {
+  const target = String(value || "").trim();
+  if (!target) return 0;
+
+  const match = target.match(/(\d+)\D*days?/i);
+  if (match) return Number(match[1]);
+
+  const numeric = Number(target.replace(/[^0-9]/g, ""));
+  return Number.isFinite(numeric) && numeric > 0 ? numeric : 0;
+}
 
 export default function RechargeScreen() {
   const { gatewayUrl, activeRouter } = useGateway();
@@ -65,12 +74,32 @@ export default function RechargeScreen() {
     setError(null);
 
     try {
-      const payload = await fetchFromGateway<RechargeData>(
+      const payload = await fetchFromGateway<{ users: HotspotUser[] }>(
         gatewayUrl,
-        "/api/mikrotik/vouchers",
+        "/api/mikrotik/users",
         activeRouter
       );
-      setData(payload);
+
+      const vouchers = payload.users
+        .map((user) => ({
+          id: user.id,
+          code: user.username,
+          profile: user.profile,
+          validity: parseValidityDays(user.profile),
+          status:
+            user.status === "active"
+              ? "available"
+              : user.status === "expired"
+              ? "expired"
+              : "used",
+          createdAt: user.createdAt,
+        }))
+        .filter((voucher) => voucher.validity > 0 && voucher.status === "available");
+
+      setData({
+        vouchers,
+        currency: activeRouter?.currency ?? "AED",
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load recharge data");
     } finally {
@@ -83,50 +112,41 @@ export default function RechargeScreen() {
   }, [loadData]);
 
   // Get available codes for selected plan
-  const availableCodes = useMemo(() => {
+  const planGroups = useMemo(() => {
     if (!data) return [];
-    return data.vouchers.filter(
-      (v) => v.validity === selectedPlan && v.status === "available"
-    );
-  }, [data, selectedPlan]);
 
-  const planOptions = useMemo(() => {
-    if (!data) return [];
-    return Array.from(
-      new Set(
-        data.vouchers
-          .filter((voucher) => voucher.status === "available" && voucher.validity > 0)
-          .map((voucher) => voucher.validity)
-      )
-    ).sort((a, b) => a - b);
+    const groups = data.vouchers
+      .filter((voucher) => voucher.status === "available" && voucher.validity > 0)
+      .reduce<Record<number, VoucherCode[]>>((acc, voucher) => {
+        acc[voucher.validity] = acc[voucher.validity] || [];
+        acc[voucher.validity].push(voucher);
+        return acc;
+      }, {});
+
+    return Object.entries(groups)
+      .map(([validity, vouchers]) => ({
+        days: Number(validity),
+        vouchers,
+      }))
+      .sort((a, b) => a.days - b.days);
   }, [data]);
 
   useEffect(() => {
-    if (planOptions.length > 0 && !planOptions.includes(selectedPlan)) {
-      setSelectedPlan(planOptions[0]);
+    if (planGroups.length > 0 && !planGroups.some((group) => group.days === selectedPlan)) {
+      setSelectedPlan(planGroups[0].days);
     }
-  }, [planOptions, selectedPlan]);
+  }, [planGroups, selectedPlan]);
 
   useEffect(() => {
-    if (availableCodes.length > 0) {
-      setSelectedCode((current) => {
-        if (current?.validity === selectedPlan) return current;
-        return availableCodes[0];
-      });
-    } else {
-      setSelectedCode(null);
-    }
-  }, [availableCodes, selectedPlan]);
+    const group = planGroups.find((g) => g.days === selectedPlan);
+    setSelectedCode(group?.vouchers[0] ?? null);
+  }, [planGroups, selectedPlan]);
 
   const handleSelectPlan = (days: number) => {
     setSelectedPlan(days);
-    const firstAvailable = data?.vouchers.find(
-      (voucher) => voucher.validity === days && voucher.status === "available"
-    );
-    setSelectedCode(firstAvailable ?? null);
   };
 
-  const selectedPlanCount = availableCodes.length;
+  const selectedPlanCount = planGroups.find((group) => group.days === selectedPlan)?.vouchers.length ?? 0;
 
   const handleConfirmRecharge = async () => {
     if (!mobileNumber.trim()) {
@@ -250,36 +270,29 @@ export default function RechargeScreen() {
         {/* Plans Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Available Plans</Text>
-          {planOptions.length > 0 ? (
+          {planGroups.length > 0 ? (
             <View style={styles.plansGrid}>
-              {planOptions.map((days) => {
-                const count =
-                  data?.vouchers.filter(
-                    (v) => v.validity === days && v.status === "available"
-                  ).length ?? 0;
-
-                return (
-                  <TouchableOpacity
-                    key={days}
-                    style={[
-                      styles.planCard,
-                      selectedPlan === days && styles.planCardSelected,
-                    ]}
-                    onPress={() => handleSelectPlan(days)}
-                  >
-                    <View style={styles.planHeader}>
-                      <Text style={styles.planDays}>{`${days} Days`}</Text>
-                      {selectedPlan === days && (
-                        <Check size={18} color="#f5a623" style={styles.checkmark} />
-                      )}
-                    </View>
-                    <View style={styles.planFooter}>
-                      <Clock size={14} color="#999" />
-                      <Text style={styles.planCodeCount}>{count} available</Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
+              {planGroups.map((group) => (
+                <TouchableOpacity
+                  key={group.days}
+                  style={[
+                    styles.planCard,
+                    selectedPlan === group.days && styles.planCardSelected,
+                  ]}
+                  onPress={() => handleSelectPlan(group.days)}
+                >
+                  <View style={styles.planHeader}>
+                    <Text style={styles.planDays}>{`${group.days} Days`}</Text>
+                    {selectedPlan === group.days && (
+                      <Check size={18} color="#f5a623" style={styles.checkmark} />
+                    )}
+                  </View>
+                  <View style={styles.planFooter}>
+                    <Clock size={14} color="#999" />
+                    <Text style={styles.planCodeCount}>{group.vouchers.length} available</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
             </View>
           ) : (
             <View style={styles.noCodesBox}>
