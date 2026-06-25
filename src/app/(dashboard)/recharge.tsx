@@ -61,6 +61,8 @@ export default function RechargeScreen() {
   const [selectedCode, setSelectedCode] = useState<VoucherCode | null>(null);
   const [processingCode, setProcessingCode] = useState<string | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
+  const [rechargeMode, setRechargeMode] = useState<"select" | "manual">("select");
+  const [manualVoucherCode, setManualVoucherCode] = useState("");
   const [lastTransaction, setLastTransaction] = useState<{
     code: string;
     mobile: string;
@@ -154,9 +156,16 @@ export default function RechargeScreen() {
       return;
     }
 
-    if (!selectedCode) {
-      Alert.alert("Error", "Please select a plan");
-      return;
+    if (rechargeMode === "manual") {
+      if (!manualVoucherCode.trim()) {
+        Alert.alert("Error", "Please enter voucher code");
+        return;
+      }
+    } else {
+      if (!selectedCode) {
+        Alert.alert("Error", "Please select a plan");
+        return;
+      }
     }
 
     if (mobileNumber.trim().length < 8 || mobileNumber.trim().length > 12) {
@@ -166,26 +175,36 @@ export default function RechargeScreen() {
 
     if (!activeRouter) return;
 
-    setProcessingCode(selectedCode.id);
+    setProcessingCode(rechargeMode === "manual" ? "manual" : selectedCode.id);
     try {
-      const result = await fetchFromGateway<{ success: boolean; message?: string }>(
+      const result = await fetchFromGateway<{ 
+        success: boolean; 
+        code?: string; 
+        validity?: number; 
+        message?: string; 
+      }>(
         gatewayUrl,
         "/api/mikrotik/vouchers/redeem",
         activeRouter,
         {
           method: "POST",
-          body: {
-            voucherId: selectedCode.id,
-            mobileNumber: mobileNumber.trim(),
-          },
+          body: rechargeMode === "manual"
+            ? {
+                voucherCode: manualVoucherCode.trim(),
+                mobileNumber: mobileNumber.trim(),
+              }
+            : {
+                voucherId: selectedCode.id,
+                mobileNumber: mobileNumber.trim(),
+              },
         }
       );
 
       if (result.success) {
         const transaction = {
-          code: selectedCode.code,
+          code: result.code || (rechargeMode === "manual" ? manualVoucherCode.trim() : selectedCode.code),
           mobile: mobileNumber,
-          validity: selectedCode.validity,
+          validity: result.validity || (rechargeMode === "manual" ? 0 : selectedCode.validity),
           timestamp: new Date().toLocaleString(),
         };
         setLastTransaction(transaction);
@@ -193,6 +212,7 @@ export default function RechargeScreen() {
 
         // Reset form
         setMobileNumber("");
+        setManualVoucherCode("");
         setSelectedCode(null);
 
         // Reload data
@@ -267,73 +287,141 @@ export default function RechargeScreen() {
           <Text style={styles.inputHint}>Voucher details will be sent to this number</Text>
         </View>
 
-        {/* Plans Section */}
+        {/* Recharge Method Toggle */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Available Plans</Text>
-          {planGroups.length > 0 ? (
-            <View style={styles.plansGrid}>
-              {planGroups.map((group) => (
-                <TouchableOpacity
-                  key={group.days}
-                  style={[
-                    styles.planCard,
-                    selectedPlan === group.days && styles.planCardSelected,
-                  ]}
-                  onPress={() => handleSelectPlan(group.days)}
-                >
-                  <View style={styles.planHeader}>
-                    <Text style={styles.planDays}>{`${group.days} Days`}</Text>
-                    {selectedPlan === group.days && (
-                      <Check size={18} color="#f5a623" style={styles.checkmark} />
-                    )}
-                  </View>
-                  <View style={styles.planFooter}>
-                    <Clock size={14} color="#999" />
-                    <Text style={styles.planCodeCount}>{group.vouchers.length} available</Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </View>
-          ) : (
-            <View style={styles.noCodesBox}>
-              <Text style={styles.noCodesTitle}>No active recharge plans</Text>
-              <Text style={styles.noCodesDesc}>
-                There are no available active codes to recharge right now.
+          <Text style={styles.sectionTitle}>Recharge Method</Text>
+          <View style={styles.tabContainer}>
+            <TouchableOpacity
+              style={[
+                styles.tabButton,
+                rechargeMode === "select" && styles.tabButtonActive,
+              ]}
+              onPress={() => setRechargeMode("select")}
+              disabled={showReceipt}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  rechargeMode === "select" && styles.tabTextActive,
+                ]}
+              >
+                Select Plan
               </Text>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Selected Plan</Text>
-          <View style={styles.planSummaryCard}>
-            <Text style={styles.planSummaryText}>
-              {selectedPlan} Days
-            </Text>
-            <Text style={styles.planSummarySubtext}>
-              Matching active recharge code is selected automatically.
-            </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.tabButton,
+                rechargeMode === "manual" && styles.tabButtonActive,
+              ]}
+              onPress={() => setRechargeMode("manual")}
+              disabled={showReceipt}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  rechargeMode === "manual" && styles.tabTextActive,
+                ]}
+              >
+                Manual Code
+              </Text>
+            </TouchableOpacity>
           </View>
-
-          {!selectedCode ? (
-            <View style={styles.noCodesBox}>
-              <Text style={styles.noCodesTitle}>Plan unavailable</Text>
-              <Text style={styles.noCodesDesc}>
-                There are no available codes for this plan. Choose another day.
-              </Text>
-            </View>
-          ) : null}
         </View>
+
+        {rechargeMode === "select" ? (
+          <>
+            {/* Plans Section */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Available Plans</Text>
+              {planGroups.length > 0 ? (
+                <View style={styles.plansGrid}>
+                  {planGroups.map((group) => (
+                    <TouchableOpacity
+                      key={group.days}
+                      style={[
+                        styles.planCard,
+                        selectedPlan === group.days && styles.planCardSelected,
+                      ]}
+                      onPress={() => handleSelectPlan(group.days)}
+                    >
+                      <View style={styles.planHeader}>
+                        <Text style={styles.planDays}>{`${group.days} Days`}</Text>
+                        {selectedPlan === group.days && (
+                          <Check size={18} color="#f5a623" style={styles.checkmark} />
+                        )}
+                      </View>
+                      <View style={styles.planFooter}>
+                        <Clock size={14} color="#999" />
+                        <Text style={styles.planCodeCount}>{group.vouchers.length} available</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : (
+                <View style={styles.noCodesBox}>
+                  <Text style={styles.noCodesTitle}>No active recharge plans</Text>
+                  <Text style={styles.noCodesDesc}>
+                    There are no available active codes to recharge right now.
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Selected Plan</Text>
+              <View style={styles.planSummaryCard}>
+                <Text style={styles.planSummaryText}>
+                  {selectedPlan} Days
+                </Text>
+                <Text style={styles.planSummarySubtext}>
+                  Matching active recharge code is selected automatically.
+                </Text>
+              </View>
+
+              {!selectedCode ? (
+                <View style={styles.noCodesBox}>
+                  <Text style={styles.noCodesTitle}>Plan unavailable</Text>
+                  <Text style={styles.noCodesDesc}>
+                    There are no available codes for this plan. Choose another day.
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+          </>
+        ) : (
+          /* Manual Voucher Code Input Section */
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Voucher Code</Text>
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter voucher code manually"
+                placeholderTextColor="#888"
+                value={manualVoucherCode}
+                onChangeText={setManualVoucherCode}
+                autoCapitalize="characters"
+                editable={!showReceipt}
+              />
+            </View>
+            <Text style={styles.inputHint}>Enter the 9-character code printed on your voucher card</Text>
+          </View>
+        )}
 
         {/* Confirm Button */}
         <View style={styles.actionSection}>
           <TouchableOpacity
             style={[
               styles.confirmButton,
-              (!selectedCode || !mobileNumber.trim()) && styles.confirmButtonDisabled,
+              (rechargeMode === "select"
+                ? (!selectedCode || !mobileNumber.trim())
+                : (!manualVoucherCode.trim() || !mobileNumber.trim())) && styles.confirmButtonDisabled,
             ]}
             onPress={handleConfirmRecharge}
-            disabled={!selectedCode || !mobileNumber.trim() || !!processingCode}
+            disabled={
+              rechargeMode === "select"
+                ? (!selectedCode || !mobileNumber.trim() || !!processingCode)
+                : (!manualVoucherCode.trim() || !mobileNumber.trim() || !!processingCode)
+            }
           >
             {processingCode ? (
               <ActivityIndicator size="small" color="#fff" />
@@ -668,5 +756,30 @@ const styles = StyleSheet.create({
     color: "#000",
     fontWeight: "bold",
     fontSize: 14,
+  },
+  tabContainer: {
+    flexDirection: "row",
+    backgroundColor: "#2a2a2a",
+    borderRadius: 8,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: "#3a3a3a",
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: "center",
+    borderRadius: 6,
+  },
+  tabButtonActive: {
+    backgroundColor: "#f5a623",
+  },
+  tabText: {
+    color: "#888",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  tabTextActive: {
+    color: "#000",
   },
 });
