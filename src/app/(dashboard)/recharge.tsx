@@ -12,6 +12,7 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useGateway } from "../../contexts/gateway-context";
 import { fetchFromGateway } from "../../lib/api-client";
 
@@ -54,6 +55,7 @@ export default function RechargeScreen() {
   const [data, setData] = useState<RechargeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [salesperson, setSalesperson] = useState("Unknown");
 
   // Form states
   const [mobileNumber, setMobileNumber] = useState("");
@@ -69,6 +71,16 @@ export default function RechargeScreen() {
     validity: number;
     timestamp: string;
   } | null>(null);
+
+  useEffect(() => {
+    async function loadSalesperson() {
+      const user = await AsyncStorage.getItem("salesperson_name");
+      if (user) {
+        setSalesperson(user);
+      }
+    }
+    void loadSalesperson();
+  }, []);
 
   const loadData = useCallback(async () => {
     if (!activeRouter) return;
@@ -89,11 +101,9 @@ export default function RechargeScreen() {
           profile: user.profile,
           validity: parseValidityDays(user.profile),
           status:
-            user.status === "active"
-              ? "available"
-              : user.status === "expired"
-              ? "expired"
-              : "used",
+            (user.comment && user.comment.includes("Mobile:")) || user.status !== "active"
+              ? "used"
+              : "available",
           createdAt: user.createdAt,
         }))
         .filter((voucher) => voucher.validity > 0 && voucher.status === "available");
@@ -192,10 +202,12 @@ export default function RechargeScreen() {
             ? {
                 voucherCode: manualVoucherCode.trim(),
                 mobileNumber: mobileNumber.trim(),
+                salesperson,
               }
             : {
                 voucherId: selectedCode.id,
                 mobileNumber: mobileNumber.trim(),
+                salesperson,
               },
         }
       );
@@ -267,6 +279,11 @@ export default function RechargeScreen() {
           <CreditCard size={40} color="#f5a623" style={styles.heroIcon} />
           <Text style={styles.heroTitle}>Quick Recharge</Text>
           <Text style={styles.heroSubtitle}>Select a plan and recharge instantly</Text>
+        </View>
+
+        {/* Operator Badge */}
+        <View style={styles.operatorBadge}>
+          <Text style={styles.operatorText}>Active Operator: <Text style={styles.operatorName}>{salesperson}</Text></Text>
         </View>
 
         {/* Mobile Number Input */}
@@ -781,5 +798,25 @@ const styles = StyleSheet.create({
   },
   tabTextActive: {
     color: "#000",
+  },
+  operatorBadge: {
+    backgroundColor: "#1a1a1a",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginHorizontal: 16,
+    marginTop: -8,
+    marginBottom: 16,
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderColor: "#3a3a3a",
+  },
+  operatorText: {
+    color: "#888",
+    fontSize: 12,
+  },
+  operatorName: {
+    color: "#f5a623",
+    fontWeight: "bold",
   },
 });

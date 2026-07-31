@@ -22,6 +22,7 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useGateway } from "../contexts/gateway-context";
 import { type MikrotikRouterConfig } from "../lib/api-client";
 
@@ -52,6 +53,64 @@ export default function GatewayScreen() {
   const [connectingId, setConnectingId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Operator Login State
+  const [currentUser, setCurrentUser] = useState<string | null>(null);
+  const [loginUsername, setLoginUsername] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [checkingLogin, setCheckingLogin] = useState(true);
+
+  useEffect(() => {
+    async function checkLogin() {
+      try {
+        const storedUser = await AsyncStorage.getItem("salesperson_name");
+        if (storedUser) {
+          setCurrentUser(storedUser);
+        }
+      } catch (err) {
+        console.error("Failed to load operator login state", err);
+      } finally {
+        setCheckingLogin(false);
+      }
+    }
+    void checkLogin();
+  }, []);
+
+  const handleOperatorLogin = async () => {
+    const user = loginUsername.trim();
+    const pass = loginPassword;
+
+    if (!user || !pass) {
+      Alert.alert("Error", "Please enter both operator username and password");
+      return;
+    }
+
+    if (
+      (user === "Fasil@2020" && pass === "1234") ||
+      (user === "Rifai" && pass === "3421")
+    ) {
+      try {
+        await AsyncStorage.setItem("salesperson_name", user);
+        setCurrentUser(user);
+        setLoginUsername("");
+        setLoginPassword("");
+        Alert.alert("Success", `Logged in as operator: ${user}`);
+      } catch {
+        Alert.alert("Error", "Failed to save operator session");
+      }
+    } else {
+      Alert.alert("Error", "Invalid operator credentials");
+    }
+  };
+
+  const handleOperatorLogout = async () => {
+    try {
+      await AsyncStorage.removeItem("salesperson_name");
+      setCurrentUser(null);
+    } catch {
+      Alert.alert("Error", "Failed to clear operator session");
+    }
+  };
 
   useEffect(() => {
     setInputUrl(gatewayUrl);
@@ -172,12 +231,69 @@ export default function GatewayScreen() {
     }
   };
 
-  if (loading) {
+  if (checkingLogin || loading) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color="#f5a623" />
-        <Text style={styles.loadingText}>Loading configurations...</Text>
+        <Text style={styles.loadingText}>
+          {checkingLogin ? "Checking operator session..." : "Loading configurations..."}
+        </Text>
       </View>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor="#121212" />
+        <ScrollView contentContainerStyle={[styles.scrollContainer, styles.loginContainer]}>
+          <View style={styles.header}>
+            <View style={styles.logoBadge}>
+              <Text style={styles.logoText}>T</Text>
+            </View>
+            <Text style={styles.title}>TOETIK MOBILE</Text>
+            <Text style={styles.subtitle}>WiFi Operator Portal</Text>
+          </View>
+
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Sales Operator Sign In</Text>
+            <Text style={styles.cardDesc}>
+              Enter your credentials to manage voucher recharges.
+            </Text>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Operator Username</Text>
+              <TextInput
+                style={styles.inputSingle}
+                placeholder="e.g. Fasil@2020"
+                placeholderTextColor="#888"
+                value={loginUsername}
+                onChangeText={setLoginUsername}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Operator Password</Text>
+              <TextInput
+                style={styles.inputSingle}
+                placeholder="••••"
+                placeholderTextColor="#888"
+                value={loginPassword}
+                onChangeText={setLoginPassword}
+                secureTextEntry
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+
+            <TouchableOpacity style={styles.loginBtn} onPress={handleOperatorLogin}>
+              <Text style={styles.loginBtnText}>Sign In</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
     );
   }
 
@@ -192,6 +308,16 @@ export default function GatewayScreen() {
           </View>
           <Text style={styles.title}>TOETIK MOBILE</Text>
           <Text style={styles.subtitle}>MikroTik RouterOS Gateway Manager</Text>
+        </View>
+
+        {/* Operator Session Info */}
+        <View style={styles.operatorSessionCard}>
+          <Text style={styles.operatorSessionText}>
+            Operator: <Text style={styles.operatorSessionName}>{currentUser}</Text>
+          </Text>
+          <TouchableOpacity style={styles.operatorLogoutBtn} onPress={handleOperatorLogout}>
+            <Text style={styles.operatorLogoutBtnText}>Logout</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Gateway API Configuration */}
@@ -743,6 +869,70 @@ const styles = StyleSheet.create({
   connectBtnText: {
     color: "#fff",
     fontSize: 13,
+    fontWeight: "bold",
+  },
+  loginContainer: {
+    justifyContent: "center",
+    flexGrow: 1,
+  },
+  formGroup: {
+    marginBottom: 16,
+  },
+  label: {
+    color: "#aaa",
+    fontSize: 13,
+    marginBottom: 6,
+    fontWeight: "600",
+  },
+  inputSingle: {
+    height: 44,
+    backgroundColor: "#2a2a2a",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    color: "#fff",
+    borderWidth: 1,
+    borderColor: "#3a3a3a",
+  },
+  loginBtn: {
+    backgroundColor: "#f5a623",
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 10,
+  },
+  loginBtnText: {
+    color: "#000",
+    fontWeight: "bold",
+    fontSize: 15,
+  },
+  operatorSessionCard: {
+    backgroundColor: "#1e1e1e",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#2a2a2a",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  operatorSessionText: {
+    color: "#aaa",
+    fontSize: 13,
+  },
+  operatorSessionName: {
+    color: "#f5a623",
+    fontWeight: "bold",
+  },
+  operatorLogoutBtn: {
+    backgroundColor: "#2d1e20",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+  },
+  operatorLogoutBtnText: {
+    color: "#ef5350",
+    fontSize: 12,
     fontWeight: "bold",
   },
 });
