@@ -101,7 +101,7 @@ export default function MoreScreen() {
     if (Platform.OS === "web") {
       window.location.href = "/";
     } else {
-      router.replace("/");
+      router.push("/");
     }
   };
 

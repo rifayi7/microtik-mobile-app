@@ -23,7 +23,7 @@ export default function DashboardLayout() {
       if (Platform.OS === "web") {
         window.location.href = "/";
       } else {
-        router.replace("/");
+        router.push("/");
       }
     }
   }, [isConnected]);
@@ -33,7 +33,7 @@ export default function DashboardLayout() {
     if (Platform.OS === "web") {
       window.location.href = "/";
     } else {
-      router.replace("/");
+      router.push("/");
     }
   };
 
