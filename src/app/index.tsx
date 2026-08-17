@@ -3,8 +3,10 @@ import {
     Check,
     ChevronRight,
     Edit2,
+    Key,
     Plus,
     Trash2,
+    User,
     Wifi,
     X
 } from "lucide-react-native";
@@ -12,6 +14,7 @@ import { useEffect, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
+    Image,
     SafeAreaView,
     ScrollView,
     StatusBar,
@@ -116,12 +119,12 @@ export default function GatewayScreen() {
     setInputUrl(gatewayUrl);
   }, [gatewayUrl]);
 
-  // If already connected, offer navigation to dashboard directly
+  // Navigate to dashboard whenever connected (and not still loading).
   useEffect(() => {
-    if (isConnected) {
+    if (!loading && isConnected) {
       router.replace("/(dashboard)");
     }
-  }, [isConnected]);
+  }, [isConnected, loading]);
 
   const handleSaveGateway = async () => {
     if (!inputUrl.trim()) {
@@ -234,7 +237,7 @@ export default function GatewayScreen() {
   if (checkingLogin || loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#f5a623" />
+        <ActivityIndicator size="large" color="#4A60D6" />
         <Text style={styles.loadingText}>
           {checkingLogin ? "Checking operator session..." : "Loading configurations..."}
         </Text>
@@ -244,145 +247,161 @@ export default function GatewayScreen() {
 
   if (!currentUser) {
     return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor="#121212" />
-        <ScrollView contentContainerStyle={[styles.scrollContainer, styles.loginContainer]}>
-          <View style={styles.header}>
-            <View style={styles.logoBadge}>
-              <Text style={styles.logoText}>T</Text>
+      <SafeAreaView style={styles.containerWhite}>
+        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+        <ScrollView contentContainerStyle={styles.loginScrollContainer} keyboardShouldPersistTaps="handled">
+          <View style={styles.loginContentWrapper}>
+            {/* Logo */}
+            <View style={styles.brandLogoContainer}>
+              <View style={styles.logoIconBg}>
+                <Wifi size={28} color="#4A60D6" />
+              </View>
+              <Text style={styles.brandLogoText}>
+                Smart <Text style={styles.brandLogoTextBlue}>wifi</Text>
+              </Text>
+              <Text style={styles.brandLogoSub}>IT Service LLC</Text>
             </View>
-            <Text style={styles.title}>TOETIK MOBILE</Text>
-            <Text style={styles.subtitle}>WiFi Operator Portal</Text>
-          </View>
 
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Sales Operator Sign In</Text>
-            <Text style={styles.cardDesc}>
-              Enter your credentials to manage voucher recharges.
+            {/* Title */}
+            <Text style={styles.loginWelcomeText}>
+              Welcome to <Text style={styles.loginWelcomeStaff}>Staff</Text> Login
             </Text>
 
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Operator Username</Text>
-              <TextInput
-                style={styles.inputSingle}
-                placeholder="e.g. Fasil@2020"
-                placeholderTextColor="#888"
-                value={loginUsername}
-                onChangeText={setLoginUsername}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            </View>
+            {/* Card Form */}
+            <View style={styles.loginFormCard}>
+              <View style={styles.inputWrapperLight}>
+                <TextInput
+                  style={styles.inputLight}
+                  placeholder="Username"
+                  placeholderTextColor="#94a3b8"
+                  value={loginUsername}
+                  onChangeText={setLoginUsername}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                <User size={20} color="#94a3b8" style={styles.inputRightIcon} />
+              </View>
 
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Operator Password</Text>
-              <TextInput
-                style={styles.inputSingle}
-                placeholder="••••"
-                placeholderTextColor="#888"
-                value={loginPassword}
-                onChangeText={setLoginPassword}
-                secureTextEntry
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            </View>
+              <View style={styles.inputWrapperLight}>
+                <TextInput
+                  style={styles.inputLight}
+                  placeholder="Password"
+                  placeholderTextColor="#94a3b8"
+                  value={loginPassword}
+                  onChangeText={setLoginPassword}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                <Key size={20} color="#94a3b8" style={styles.inputRightIcon} />
+              </View>
 
-            <TouchableOpacity style={styles.loginBtn} onPress={handleOperatorLogin}>
-              <Text style={styles.loginBtnText}>Sign In</Text>
-            </TouchableOpacity>
+              <TouchableOpacity style={styles.loginButtonIndigo} onPress={handleOperatorLogin}>
+                <Text style={styles.loginButtonText}>LOGIN</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Bottom Illustration */}
+          <View style={styles.illustrationContainer}>
+            <Image
+              source={require("../../assets/images/login_city_bg.jpg")}
+              style={styles.illustrationImage}
+              resizeMode="contain"
+            />
           </View>
         </ScrollView>
       </SafeAreaView>
     );
   }
 
+  // Connected state: Router management list (styled in clean light theme!)
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#1e1e1e" />
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
+    <SafeAreaView style={styles.containerLight}>
+      <StatusBar barStyle="dark-content" backgroundColor="#f8fafc" />
+      <ScrollView contentContainerStyle={styles.scrollContainerLight} keyboardShouldPersistTaps="handled">
         {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.logoBadge}>
-            <Text style={styles.logoText}>T</Text>
+        <View style={styles.headerLight}>
+          <View style={styles.logoBadgeLight}>
+            <Wifi size={24} color="#4A60D6" />
           </View>
-          <Text style={styles.title}>TOETIK MOBILE</Text>
-          <Text style={styles.subtitle}>MikroTik RouterOS Gateway Manager</Text>
+          <Text style={styles.titleLight}>SmartWifi Gateway</Text>
+          <Text style={styles.subtitleLight}>MikroTik RouterOS Gateway Manager</Text>
         </View>
 
         {/* Operator Session Info */}
-        <View style={styles.operatorSessionCard}>
-          <Text style={styles.operatorSessionText}>
-            Operator: <Text style={styles.operatorSessionName}>{currentUser}</Text>
+        <View style={styles.operatorSessionCardLight}>
+          <Text style={styles.operatorSessionTextLight}>
+            Operator: <Text style={styles.operatorSessionNameLight}>{currentUser}</Text>
           </Text>
-          <TouchableOpacity style={styles.operatorLogoutBtn} onPress={handleOperatorLogout}>
-            <Text style={styles.operatorLogoutBtnText}>Logout</Text>
+          <TouchableOpacity style={styles.operatorLogoutBtnLight} onPress={handleOperatorLogout}>
+            <Text style={styles.operatorLogoutBtnTextLight}>Logout</Text>
           </TouchableOpacity>
         </View>
 
         {/* Gateway API Configuration */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Next.js Gateway Server</Text>
-          <Text style={styles.cardDesc}>
+        <View style={styles.cardLight}>
+          <Text style={styles.cardTitleLight}>Next.js Gateway Server</Text>
+          <Text style={styles.cardDescLight}>
             Specify the base URL of your running Next.js application proxy.
           </Text>
-          <View style={styles.inputRow}>
+          <View style={styles.inputRowLight}>
             <TextInput
-              style={styles.input}
+              style={styles.inputLightConfig}
               placeholder="e.g. http://192.168.1.5:3000"
-              placeholderTextColor="#888"
+              placeholderTextColor="#94a3b8"
               value={inputUrl}
               onChangeText={setInputUrl}
               autoCapitalize="none"
               autoCorrect={false}
             />
-            <TouchableOpacity style={styles.saveButton} onPress={handleSaveGateway}>
-              <Text style={styles.saveButtonText}>Save</Text>
+            <TouchableOpacity style={styles.saveButtonLight} onPress={handleSaveGateway}>
+              <Text style={styles.saveButtonTextLight}>Save</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         {/* Router List */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Your MikroTik Routers</Text>
+        <View style={styles.sectionHeaderLight}>
+          <Text style={styles.sectionTitleLight}>Your MikroTik Routers</Text>
           {!isAdding && (
             <TouchableOpacity
-              style={styles.addButtonInline}
+              style={styles.addButtonInlineLight}
               onPress={() => setIsAdding(true)}
             >
-              <Plus size={16} color="#f5a623" />
-              <Text style={styles.addButtonInlineText}>Add New</Text>
+              <Plus size={16} color="#4A60D6" />
+              <Text style={styles.addButtonInlineTextLight}>Add New</Text>
             </TouchableOpacity>
           )}
         </View>
 
         {isAdding && (
-          <View style={[styles.card, styles.formCard]}>
-            <View style={styles.formHeader}>
-              <Text style={styles.cardTitle}>
+          <View style={[styles.cardLight, styles.formCardLight]}>
+            <View style={styles.formHeaderLight}>
+              <Text style={styles.cardTitleLight}>
                 {editingId ? "Edit Router Configuration" : "Add Router Configuration"}
               </Text>
               <TouchableOpacity onPress={handleCancelEdit}>
-                <X size={20} color="#f5a623" />
+                <X size={20} color="#64748b" />
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.label}>Session Name *</Text>
+            <Text style={styles.labelLight}>Session Name *</Text>
             <TextInput
-              style={styles.formInput}
+              style={styles.formInputLight}
               placeholder="e.g. Office Core"
-              placeholderTextColor="#888"
+              placeholderTextColor="#94a3b8"
               value={sessionName}
               onChangeText={setSessionName}
             />
 
-            <View style={styles.formRow}>
+            <View style={styles.formRowLight}>
               <View style={{ flex: 2, marginRight: 8 }}>
-                <Text style={styles.label}>IP Address / Host *</Text>
+                <Text style={styles.labelLight}>IP Address / Host *</Text>
                 <TextInput
-                  style={styles.formInput}
+                  style={styles.formInputLight}
                   placeholder="e.g. 192.168.88.1"
-                  placeholderTextColor="#888"
+                  placeholderTextColor="#94a3b8"
                   value={host}
                   onChangeText={setHost}
                   autoCapitalize="none"
@@ -390,11 +409,11 @@ export default function GatewayScreen() {
                 />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.label}>Port *</Text>
+                <Text style={styles.labelLight}>Port *</Text>
                 <TextInput
-                  style={styles.formInput}
+                  style={styles.formInputLight}
                   placeholder="8728"
-                  placeholderTextColor="#888"
+                  placeholderTextColor="#94a3b8"
                   value={port}
                   onChangeText={setPort}
                   keyboardType="numeric"
@@ -402,13 +421,13 @@ export default function GatewayScreen() {
               </View>
             </View>
 
-            <View style={styles.formRow}>
+            <View style={styles.formRowLight}>
               <View style={{ flex: 1, marginRight: 8 }}>
-                <Text style={styles.label}>Username *</Text>
+                <Text style={styles.labelLight}>Username *</Text>
                 <TextInput
-                  style={styles.formInput}
+                  style={styles.formInputLight}
                   placeholder="admin"
-                  placeholderTextColor="#888"
+                  placeholderTextColor="#94a3b8"
                   value={username}
                   onChangeText={setUsername}
                   autoCapitalize="none"
@@ -416,11 +435,11 @@ export default function GatewayScreen() {
                 />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.label}>Password</Text>
+                <Text style={styles.labelLight}>Password</Text>
                 <TextInput
-                  style={styles.formInput}
+                  style={styles.formInputLight}
                   placeholder="password"
-                  placeholderTextColor="#888"
+                  placeholderTextColor="#94a3b8"
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry
@@ -430,38 +449,38 @@ export default function GatewayScreen() {
               </View>
             </View>
 
-            <View style={styles.formRow}>
+            <View style={styles.formRowLight}>
               <View style={{ flex: 1, marginRight: 8 }}>
-                <Text style={styles.label}>Currency Code</Text>
+                <Text style={styles.labelLight}>Currency Code</Text>
                 <TextInput
-                  style={styles.formInput}
+                  style={styles.formInputLight}
                   placeholder="AED"
-                  placeholderTextColor="#888"
+                  placeholderTextColor="#94a3b8"
                   value={currency}
                   onChangeText={setCurrency}
                   autoCapitalize="characters"
                 />
               </View>
-              <View style={[styles.switchContainer, { flex: 1 }]}>
-                <Text style={styles.label}>Use TLS</Text>
+              <View style={[styles.switchContainerLight, { flex: 1 }]}>
+                <Text style={styles.labelLight}>Use TLS</Text>
                 <Switch
                   value={useTls}
                   onValueChange={setUseTls}
-                  trackColor={{ false: "#333", true: "#f5a623" }}
-                  thumbColor={useTls ? "#fff" : "#aaa"}
+                  trackColor={{ false: "#e2e8f0", true: "#4A60D6" }}
+                  thumbColor={useTls ? "#fff" : "#cbd5e1"}
                 />
               </View>
             </View>
 
-            <View style={styles.formActions}>
+            <View style={styles.formActionsLight}>
               <TouchableOpacity
-                style={styles.cancelButton}
+                style={styles.cancelButtonLight}
                 onPress={handleCancelEdit}
               >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Text style={styles.cancelButtonTextLight}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.submitButton} onPress={handleAddRouter}>
-                <Text style={styles.submitButtonText}>
+              <TouchableOpacity style={styles.submitButtonLight} onPress={handleAddRouter}>
+                <Text style={styles.submitButtonTextLight}>
                   {editingId ? "Update Config" : "Save Config"}
                 </Text>
               </TouchableOpacity>
@@ -470,18 +489,18 @@ export default function GatewayScreen() {
         )}
 
         {routers.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Wifi size={36} color="#444" style={styles.emptyIcon} />
-            <Text style={styles.emptyTitle}>No routers added</Text>
-            <Text style={styles.emptyDesc}>
+          <View style={styles.emptyCardLight}>
+            <Wifi size={36} color="#94a3b8" style={styles.emptyIconLight} />
+            <Text style={styles.emptyTitleLight}>No routers added</Text>
+            <Text style={styles.emptyDescLight}>
               Add your MikroTik router connection details to monitor your hotspots.
             </Text>
             <TouchableOpacity
-              style={styles.emptyButton}
+              style={styles.emptyButtonLight}
               onPress={() => setIsAdding(true)}
             >
               <Plus size={18} color="#fff" />
-              <Text style={styles.emptyButtonText}>Add First Router</Text>
+              <Text style={styles.emptyButtonTextLight}>Add First Router</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -490,32 +509,32 @@ export default function GatewayScreen() {
             const isActive = activeRouter?.id === item.id;
 
             return (
-              <View key={item.id} style={styles.routerCard}>
-                <View style={styles.routerInfo}>
-                  <View style={styles.routerMainInfo}>
-                    <Text style={styles.routerName}>{item.sessionName}</Text>
+              <View key={item.id} style={styles.routerCardLight}>
+                <View style={styles.routerInfoLight}>
+                  <View style={styles.routerMainInfoLight}>
+                    <Text style={styles.routerNameLight}>{item.sessionName}</Text>
                     {isActive && (
-                      <View style={styles.connectedBadge}>
-                        <Check size={10} color="#2e7d32" />
-                        <Text style={styles.connectedBadgeText}>Connected</Text>
+                      <View style={styles.connectedBadgeLight}>
+                        <Check size={10} color="#16a34a" />
+                        <Text style={styles.connectedBadgeTextLight}>Connected</Text>
                       </View>
                     )}
                   </View>
-                  <Text style={styles.routerHost}>
+                  <Text style={styles.routerHostLight}>
                     {item.host}:{item.port} • {item.username}
                   </Text>
                 </View>
 
-                <View style={styles.routerActions}>
+                <View style={styles.routerActionsLight}>
                   <TouchableOpacity
-                    style={styles.editBtn}
+                    style={styles.editBtnLight}
                     onPress={() => handleEditRouter(item)}
                   >
-                    <Edit2 size={16} color="#f5a623" />
+                    <Edit2 size={16} color="#4A60D6" />
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    style={styles.deleteBtn}
+                    style={styles.deleteBtnLight}
                     onPress={() => {
                       Alert.alert(
                         "Delete Router",
@@ -531,13 +550,13 @@ export default function GatewayScreen() {
                       );
                     }}
                   >
-                    <Trash2 size={16} color="#ef5350" />
+                    <Trash2 size={16} color="#ef4444" />
                   </TouchableOpacity>
 
                   <TouchableOpacity
                     style={[
-                      styles.connectBtn,
-                      isActive && styles.activeConnectBtn,
+                      styles.connectBtnLight,
+                      isActive && styles.activeConnectBtnLight,
                     ]}
                     onPress={() => void handleConnect(item.id)}
                     disabled={isConnecting}
@@ -546,7 +565,7 @@ export default function GatewayScreen() {
                       <ActivityIndicator size="small" color="#fff" />
                     ) : (
                       <>
-                        <Text style={styles.connectBtnText}>
+                        <Text style={styles.connectBtnTextLight}>
                           {isActive ? "Enter" : "Connect"}
                         </Text>
                         <ChevronRight size={14} color="#fff" />
@@ -564,11 +583,124 @@ export default function GatewayScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  containerWhite: {
     flex: 1,
-    backgroundColor: "#121212",
+    backgroundColor: "#ffffff",
   },
-  scrollContainer: {
+  loginScrollContainer: {
+    flexGrow: 1,
+    justifyContent: "space-between",
+    backgroundColor: "#ffffff",
+    paddingBottom: 20,
+  },
+  loginContentWrapper: {
+    paddingHorizontal: 24,
+    paddingTop: 60,
+    alignItems: "center",
+  },
+  brandLogoContainer: {
+    alignItems: "center",
+    marginBottom: 40,
+  },
+  logoIconBg: {
+    width: 60,
+    height: 60,
+    borderRadius: 20,
+    backgroundColor: "#EEF2FF",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  brandLogoText: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: "#1E293B",
+  },
+  brandLogoTextBlue: {
+    color: "#4A60D6",
+  },
+  brandLogoSub: {
+    fontSize: 12,
+    color: "#64748B",
+    textTransform: "uppercase",
+    letterSpacing: 1.5,
+    marginTop: 4,
+  },
+  loginWelcomeText: {
+    fontSize: 22,
+    color: "#1E293B",
+    marginBottom: 30,
+    fontWeight: "500",
+  },
+  loginWelcomeStaff: {
+    fontWeight: "bold",
+    color: "#4A60D6",
+  },
+  loginFormCard: {
+    width: "100%",
+    maxWidth: 360,
+  },
+  inputWrapperLight: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#ffffff",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    paddingHorizontal: 16,
+    height: 52,
+    marginBottom: 16,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  inputLight: {
+    flex: 1,
+    height: "100%",
+    color: "#1E293B",
+    fontSize: 15,
+  },
+  inputRightIcon: {
+    marginLeft: 10,
+  },
+  loginButtonIndigo: {
+    backgroundColor: "#4A60D6",
+    height: 52,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 10,
+    shadowColor: "#4A60D6",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  loginButtonText: {
+    color: "#ffffff",
+    fontWeight: "bold",
+    fontSize: 16,
+    letterSpacing: 0.5,
+  },
+  illustrationContainer: {
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    marginTop: 20,
+  },
+  illustrationImage: {
+    width: "100%",
+    height: 190,
+  },
+
+  // Gateway Config / Router Manager Light Theme Styles
+  containerLight: {
+    flex: 1,
+    backgroundColor: "#F8FAFC",
+  },
+  scrollContainerLight: {
     padding: 16,
     paddingBottom: 40,
   },
@@ -576,219 +708,261 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#121212",
+    backgroundColor: "#F8FAFC",
   },
   loadingText: {
-    color: "#aaa",
+    color: "#64748B",
     marginTop: 10,
     fontSize: 15,
   },
-  header: {
+  headerLight: {
     alignItems: "center",
     marginVertical: 24,
   },
-  logoBadge: {
-    width: 64,
-    height: 64,
+  logoBadgeLight: {
+    width: 56,
+    height: 56,
     borderRadius: 16,
-    backgroundColor: "#fff",
+    backgroundColor: "#ffffff",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#000",
+    shadowColor: "#0F172A",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.05,
     shadowRadius: 4,
-    elevation: 5,
+    elevation: 2,
     marginBottom: 12,
   },
-  logoText: {
-    fontSize: 36,
-    fontWeight: "900",
-    color: "#f5a623",
-  },
-  title: {
+  titleLight: {
     fontSize: 22,
     fontWeight: "bold",
-    color: "#fff",
-    letterSpacing: 1,
+    color: "#1E293B",
+    letterSpacing: 0.5,
   },
-  subtitle: {
+  subtitleLight: {
     fontSize: 13,
-    color: "#888",
+    color: "#64748B",
     marginTop: 4,
   },
-  card: {
-    backgroundColor: "#1e1e1e",
+  operatorSessionCardLight: {
+    backgroundColor: "#ffffff",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.02,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  operatorSessionTextLight: {
+    color: "#64748B",
+    fontSize: 13,
+  },
+  operatorSessionNameLight: {
+    color: "#4A60D6",
+    fontWeight: "bold",
+  },
+  operatorLogoutBtnLight: {
+    backgroundColor: "#FEE2E2",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+  },
+  operatorLogoutBtnTextLight: {
+    color: "#EF4444",
+    fontSize: 12,
+    fontWeight: "bold",
+  },
+  cardLight: {
+    backgroundColor: "#ffffff",
     borderRadius: 12,
     padding: 16,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: "#2a2a2a",
+    borderColor: "#E2E8F0",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.02,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  cardTitle: {
-    fontSize: 16,
+  cardTitleLight: {
+    fontSize: 15,
     fontWeight: "bold",
-    color: "#fff",
+    color: "#1E293B",
     marginBottom: 4,
   },
-  cardDesc: {
+  cardDescLight: {
     fontSize: 12,
-    color: "#888",
+    color: "#64748B",
     marginBottom: 12,
+    lineHeight: 16,
   },
-  inputRow: {
+  inputRowLight: {
     flexDirection: "row",
   },
-  input: {
+  inputLightConfig: {
     flex: 1,
     height: 44,
-    backgroundColor: "#2a2a2a",
+    backgroundColor: "#F8FAFC",
     borderRadius: 8,
     paddingHorizontal: 12,
-    color: "#fff",
+    color: "#1E293B",
     borderWidth: 1,
-    borderColor: "#333",
+    borderColor: "#E2E8F0",
     fontSize: 14,
   },
-  saveButton: {
-    backgroundColor: "#f5a623",
+  saveButtonLight: {
+    backgroundColor: "#4A60D6",
     paddingHorizontal: 16,
     justifyContent: "center",
     alignItems: "center",
     borderRadius: 8,
     marginLeft: 8,
   },
-  saveButtonText: {
-    color: "#121212",
+  saveButtonTextLight: {
+    color: "#ffffff",
     fontWeight: "bold",
     fontSize: 14,
   },
-  sectionHeader: {
+  sectionHeaderLight: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 12,
   },
-  sectionTitle: {
+  sectionTitleLight: {
     fontSize: 16,
     fontWeight: "bold",
-    color: "#fff",
+    color: "#1E293B",
   },
-  addButtonInline: {
+  addButtonInlineLight: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 4,
   },
-  addButtonInlineText: {
-    color: "#f5a623",
+  addButtonInlineTextLight: {
+    color: "#4A60D6",
     fontWeight: "bold",
     fontSize: 14,
-    marginLeft: 4,
   },
-  formCard: {
-    borderColor: "#f5a623",
+  formCardLight: {
+    borderColor: "#4A60D6",
   },
-  formHeader: {
+  formHeaderLight: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 12,
   },
-  label: {
-    color: "#aaa",
+  labelLight: {
+    color: "#475569",
     fontSize: 12,
     marginBottom: 4,
     marginTop: 8,
+    fontWeight: "600",
   },
-  formInput: {
+  formInputLight: {
     height: 40,
-    backgroundColor: "#2a2a2a",
+    backgroundColor: "#F8FAFC",
     borderRadius: 6,
     paddingHorizontal: 10,
-    color: "#fff",
+    color: "#1E293B",
     borderWidth: 1,
-    borderColor: "#333",
+    borderColor: "#E2E8F0",
     fontSize: 13,
   },
-  formRow: {
+  formRowLight: {
     flexDirection: "row",
     justifyContent: "space-between",
   },
-  switchContainer: {
+  switchContainerLight: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     marginTop: 18,
     paddingHorizontal: 8,
   },
-  formActions: {
+  formActionsLight: {
     flexDirection: "row",
     justifyContent: "flex-end",
     marginTop: 16,
   },
-  cancelButton: {
+  cancelButtonLight: {
     paddingVertical: 10,
     paddingHorizontal: 16,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 8,
   },
-  cancelButtonText: {
-    color: "#aaa",
+  cancelButtonTextLight: {
+    color: "#64748B",
     fontSize: 14,
   },
-  submitButton: {
-    backgroundColor: "#f5a623",
+  submitButtonLight: {
+    backgroundColor: "#4A60D6",
     borderRadius: 6,
     paddingVertical: 10,
     paddingHorizontal: 16,
     justifyContent: "center",
     alignItems: "center",
   },
-  submitButtonText: {
-    color: "#121212",
+  submitButtonTextLight: {
+    color: "#ffffff",
     fontWeight: "bold",
     fontSize: 14,
   },
-  emptyCard: {
-    backgroundColor: "#1e1e1e",
+  emptyCardLight: {
+    backgroundColor: "#ffffff",
     borderRadius: 12,
     padding: 32,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#2a2a2a",
+    borderColor: "#E2E8F0",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.02,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  emptyIcon: {
+  emptyIconLight: {
     marginBottom: 12,
   },
-  emptyTitle: {
+  emptyTitleLight: {
     fontSize: 16,
     fontWeight: "bold",
-    color: "#fff",
+    color: "#1E293B",
   },
-  emptyDesc: {
+  emptyDescLight: {
     fontSize: 13,
-    color: "#888",
+    color: "#64748B",
     textAlign: "center",
     marginTop: 6,
     marginBottom: 16,
     lineHeight: 18,
   },
-  emptyButton: {
+  emptyButtonLight: {
     flexDirection: "row",
-    backgroundColor: "#f5a623",
+    backgroundColor: "#4A60D6",
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 8,
     alignItems: "center",
     gap: 6,
   },
-  emptyButtonText: {
-    color: "#121212",
+  emptyButtonTextLight: {
+    color: "#ffffff",
     fontWeight: "bold",
     fontSize: 14,
   },
-  routerCard: {
-    backgroundColor: "#1e1e1e",
+  routerCardLight: {
+    backgroundColor: "#ffffff",
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
@@ -796,142 +970,83 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#2a2a2a",
+    borderColor: "#E2E8F0",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.02,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  routerInfo: {
+  routerInfoLight: {
     flex: 1,
     marginRight: 8,
   },
-  routerMainInfo: {
+  routerMainInfoLight: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
   },
-  routerName: {
+  routerNameLight: {
     fontSize: 15,
     fontWeight: "bold",
-    color: "#fff",
+    color: "#1E293B",
   },
-  connectedBadge: {
+  connectedBadgeLight: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#c8e6c9",
+    backgroundColor: "#DCFCE7",
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
     gap: 2,
   },
-  connectedBadgeText: {
-    color: "#2e7d32",
+  connectedBadgeTextLight: {
+    color: "#16a34a",
     fontSize: 9,
     fontWeight: "bold",
   },
-  routerHost: {
+  routerHostLight: {
     fontSize: 12,
-    color: "#888",
+    color: "#64748B",
     marginTop: 4,
   },
-  routerActions: {
+  routerActionsLight: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 8,
   },
-  editBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#2d2416",
+  editBtnLight: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#EEF2FF",
     justifyContent: "center",
     alignItems: "center",
   },
-  deleteBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#2d1e20",
+  deleteBtnLight: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#FEE2E2",
     justifyContent: "center",
     alignItems: "center",
   },
-  connectBtn: {
-    backgroundColor: "#f5a623",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    minWidth: 80,
-    justifyContent: "center",
-  },
-  activeConnectBtn: {
-    backgroundColor: "#2e7d32",
-  },
-  connectBtnText: {
-    color: "#fff",
-    fontSize: 13,
-    fontWeight: "bold",
-  },
-  loginContainer: {
-    justifyContent: "center",
-    flexGrow: 1,
-  },
-  formGroup: {
-    marginBottom: 16,
-  },
-  label: {
-    color: "#aaa",
-    fontSize: 13,
-    marginBottom: 6,
-    fontWeight: "600",
-  },
-  inputSingle: {
-    height: 44,
-    backgroundColor: "#2a2a2a",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    color: "#fff",
-    borderWidth: 1,
-    borderColor: "#3a3a3a",
-  },
-  loginBtn: {
-    backgroundColor: "#f5a623",
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: "center",
-    marginTop: 10,
-  },
-  loginBtnText: {
-    color: "#000",
-    fontWeight: "bold",
-    fontSize: 15,
-  },
-  operatorSessionCard: {
-    backgroundColor: "#1e1e1e",
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: "#2a2a2a",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  operatorSessionText: {
-    color: "#aaa",
-    fontSize: 13,
-  },
-  operatorSessionName: {
-    color: "#f5a623",
-    fontWeight: "bold",
-  },
-  operatorLogoutBtn: {
-    backgroundColor: "#2d1e20",
+  connectBtnLight: {
+    backgroundColor: "#4A60D6",
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    minWidth: 72,
+    justifyContent: "center",
   },
-  operatorLogoutBtnText: {
-    color: "#ef5350",
+  activeConnectBtnLight: {
+    backgroundColor: "#16a34a",
+  },
+  connectBtnTextLight: {
+    color: "#ffffff",
     fontSize: 12,
     fontWeight: "bold",
   },

@@ -1,20 +1,29 @@
-import { Check, Clock, CreditCard, Phone } from "lucide-react-native";
+import {
+  Bell,
+  Building2,
+  Check,
+  ChevronDown,
+  Clock,
+  CreditCard,
+  Phone,
+} from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useGateway } from "../../contexts/gateway-context";
 import { fetchFromGateway } from "../../lib/api-client";
+import { formatCurrency } from "../../lib/format";
 
 interface VoucherCode {
   id: string;
@@ -32,6 +41,7 @@ interface HotspotUser {
   profile: string;
   status: "active" | "disabled" | "expired";
   createdAt: string;
+  comment?: string;
 }
 
 interface RechargeData {
@@ -62,15 +72,34 @@ export default function RechargeScreen() {
   const [selectedPlan, setSelectedPlan] = useState(0);
   const [selectedCode, setSelectedCode] = useState<VoucherCode | null>(null);
   const [processingCode, setProcessingCode] = useState<string | null>(null);
-  const [showReceipt, setShowReceipt] = useState(false);
   const [rechargeMode, setRechargeMode] = useState<"select" | "manual">("select");
   const [manualVoucherCode, setManualVoucherCode] = useState("");
+  const [paymentType, setPaymentType] = useState<"cash" | "credit">("cash");
+  const [step, setStep] = useState<"entry" | "confirmation" | "success">("entry");
+  const [showCampDropdown, setShowCampDropdown] = useState(false);
+  const [showValidityDropdown, setShowValidityDropdown] = useState(false);
+
   const [lastTransaction, setLastTransaction] = useState<{
     code: string;
     mobile: string;
     validity: number;
     timestamp: string;
+    camp: string;
+    paymentType: string;
   } | null>(null);
+
+  const camps = useMemo(() => {
+    const defaultCamp = activeRouter?.camp || "APM-DXB-camp-1 - Apricom DXB";
+    return [defaultCamp, "APM-DXB-camp-2 - Apricom DXB 2", "APM-SHJ-camp-1 - Sharjah Main"];
+  }, [activeRouter]);
+
+  const [selectedCamp, setSelectedCamp] = useState("");
+
+  useEffect(() => {
+    if (camps.length > 0) {
+      setSelectedCamp(camps[0]);
+    }
+  }, [camps]);
 
   useEffect(() => {
     async function loadSalesperson() {
@@ -83,7 +112,10 @@ export default function RechargeScreen() {
   }, []);
 
   const loadData = useCallback(async () => {
-    if (!activeRouter) return;
+    if (!activeRouter) {
+      setData(null);
+      return;
+    }
     setLoading(true);
     setError(null);
 
@@ -102,8 +134,8 @@ export default function RechargeScreen() {
           validity: parseValidityDays(user.profile),
           status:
             (user.comment && user.comment.includes("Mobile:")) || user.status !== "active"
-              ? "used"
-              : "available",
+              ? ("used" as const)
+              : ("available" as const),
           createdAt: user.createdAt,
         }))
         .filter((voucher) => voucher.validity > 0 && voucher.status === "available");
@@ -120,8 +152,12 @@ export default function RechargeScreen() {
   }, [gatewayUrl, activeRouter]);
 
   useEffect(() => {
+    if (!activeRouter) {
+      setData(null);
+      return;
+    }
     void loadData();
-  }, [loadData]);
+  }, [loadData, activeRouter]);
 
   // Get available codes for selected plan
   const planGroups = useMemo(() => {
@@ -158,8 +194,6 @@ export default function RechargeScreen() {
     setSelectedPlan(days);
   };
 
-  const selectedPlanCount = planGroups.find((group) => group.days === selectedPlan)?.vouchers.length ?? 0;
-
   const handleConfirmRecharge = async () => {
     if (!mobileNumber.trim()) {
       Alert.alert("Error", "Please enter mobile number");
@@ -185,7 +219,7 @@ export default function RechargeScreen() {
 
     if (!activeRouter) return;
 
-    setProcessingCode(rechargeMode === "manual" ? "manual" : selectedCode.id);
+    setProcessingCode(rechargeMode === "manual" ? "manual" : selectedCode!.id);
     try {
       const result = await fetchFromGateway<{ 
         success: boolean; 
@@ -205,7 +239,7 @@ export default function RechargeScreen() {
                 salesperson,
               }
             : {
-                voucherId: selectedCode.id,
+                voucherId: selectedCode!.id,
                 mobileNumber: mobileNumber.trim(),
                 salesperson,
               },
@@ -214,13 +248,15 @@ export default function RechargeScreen() {
 
       if (result.success) {
         const transaction = {
-          code: result.code || (rechargeMode === "manual" ? manualVoucherCode.trim() : selectedCode.code),
+          code: result.code || (rechargeMode === "manual" ? manualVoucherCode.trim() : selectedCode!.code),
           mobile: mobileNumber,
-          validity: result.validity || (rechargeMode === "manual" ? 0 : selectedCode.validity),
+          validity: result.validity || (rechargeMode === "manual" ? 0 : selectedCode!.validity),
           timestamp: new Date().toLocaleString(),
+          camp: selectedCamp,
+          paymentType: paymentType,
         };
         setLastTransaction(transaction);
-        setShowReceipt(true);
+        setStep("success");
 
         // Reset form
         setMobileNumber("");
@@ -229,8 +265,6 @@ export default function RechargeScreen() {
 
         // Reload data
         await loadData();
-
-        Alert.alert("Success", "Recharge completed successfully!");
       } else {
         throw new Error(result.message || "Recharge failed");
       }
@@ -247,9 +281,9 @@ export default function RechargeScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor="#1e1e1e" />
+        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#f5a623" />
+          <ActivityIndicator size="large" color="#4A60D6" />
           <Text style={styles.loadingText}>Loading recharge data...</Text>
         </View>
       </SafeAreaView>
@@ -259,7 +293,7 @@ export default function RechargeScreen() {
   if (error) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor="#1e1e1e" />
+        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Error: {error}</Text>
           <TouchableOpacity style={styles.retryButton} onPress={loadData}>
@@ -272,221 +306,345 @@ export default function RechargeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#1e1e1e" />
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Hero Section */}
-        <View style={styles.hero}>
-          <CreditCard size={40} color="#f5a623" style={styles.heroIcon} />
-          <Text style={styles.heroTitle}>Quick Recharge</Text>
-          <Text style={styles.heroSubtitle}>Select a plan and recharge instantly</Text>
+      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+      
+      {/* Header (Top Profile Bar) */}
+      <View style={styles.topProfileBar}>
+        <View style={styles.welcomeInfo}>
+          <Text style={styles.welcomeHello}>Hello {salesperson}</Text>
+          <Text style={styles.welcomeSubtitle}>Welcome</Text>
         </View>
-
-        {/* Operator Badge */}
-        <View style={styles.operatorBadge}>
-          <Text style={styles.operatorText}>Active Operator: <Text style={styles.operatorName}>{salesperson}</Text></Text>
-        </View>
-
-        {/* Mobile Number Input */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Mobile Number</Text>
-          <View style={styles.inputWrapper}>
-            <Phone size={18} color="#f5a623" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Enter mobile number"
-              placeholderTextColor="#888"
-              value={mobileNumber}
-              onChangeText={setMobileNumber}
-              keyboardType="phone-pad"
-              editable={!showReceipt}
-            />
-          </View>
-          <Text style={styles.inputHint}>Voucher details will be sent to this number</Text>
-        </View>
-
-        {/* Recharge Method Toggle */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Recharge Method</Text>
-          <View style={styles.tabContainer}>
-            <TouchableOpacity
-              style={[
-                styles.tabButton,
-                rechargeMode === "select" && styles.tabButtonActive,
-              ]}
-              onPress={() => setRechargeMode("select")}
-              disabled={showReceipt}
-            >
-              <Text
-                style={[
-                  styles.tabText,
-                  rechargeMode === "select" && styles.tabTextActive,
-                ]}
-              >
-                Select Plan
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.tabButton,
-                rechargeMode === "manual" && styles.tabButtonActive,
-              ]}
-              onPress={() => setRechargeMode("manual")}
-              disabled={showReceipt}
-            >
-              <Text
-                style={[
-                  styles.tabText,
-                  rechargeMode === "manual" && styles.tabTextActive,
-                ]}
-              >
-                Manual Code
-              </Text>
-            </TouchableOpacity>
+        <View style={styles.headerRightControls}>
+          <TouchableOpacity style={styles.bellButton}>
+            <Bell size={20} color="#334155" />
+          </TouchableOpacity>
+          <View style={styles.profileBadge}>
+            <View style={styles.profileBadgeTextContainer}>
+              <Text style={styles.profileBadgeName}>{salesperson.substring(0, 10)}</Text>
+              <Text style={styles.profileBadgeRole}>STAFF</Text>
+            </View>
+            <View style={styles.profileAvatar}>
+              <Text style={styles.profileAvatarText}>{salesperson.charAt(0).toUpperCase()}</Text>
+            </View>
           </View>
         </View>
+      </View>
 
-        {rechargeMode === "select" ? (
-          <>
-            {/* Plans Section */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Available Plans</Text>
-              {planGroups.length > 0 ? (
-                <View style={styles.plansGrid}>
-                  {planGroups.map((group) => (
-                    <TouchableOpacity
-                      key={group.days}
-                      style={[
-                        styles.planCard,
-                        selectedPlan === group.days && styles.planCardSelected,
-                      ]}
-                      onPress={() => handleSelectPlan(group.days)}
+      {/* Progress Steps Tracker */}
+      <View style={styles.stepsContainer}>
+        <TouchableOpacity 
+          style={[styles.stepItem, step === "entry" && styles.stepItemActive]}
+          onPress={() => step !== "success" && setStep("entry")}
+        >
+          <Text style={[styles.stepText, step === "entry" && styles.stepTextActive]}>Entry</Text>
+          {step === "entry" && <View style={styles.stepUnderline} />}
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.stepItem, step === "confirmation" && styles.stepItemActive]}
+          onPress={() => step === "confirmation" && setStep("confirmation")}
+          disabled={step === "entry"}
+        >
+          <Text style={[styles.stepText, step === "confirmation" && styles.stepTextActive]}>Confirmation</Text>
+          {step === "confirmation" && <View style={styles.stepUnderline} />}
+        </TouchableOpacity>
+
+        <View style={[styles.stepItem, step === "success" && styles.stepItemActive]}>
+          <Text style={[styles.stepText, step === "success" && styles.stepTextActive]}>Success</Text>
+          {step === "success" && <View style={styles.stepUnderline} />}
+        </View>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        {step === "entry" && (
+          <View style={styles.formContainer}>
+            {/* Select Camp Dropdown */}
+            <View style={styles.fieldSection}>
+              <Text style={styles.fieldLabel}>Select Camp</Text>
+              <TouchableOpacity 
+                style={styles.dropdownSelector} 
+                onPress={() => {
+                  setShowCampDropdown(!showCampDropdown);
+                  setShowValidityDropdown(false);
+                }}
+              >
+                <View style={styles.dropdownSelectorLeft}>
+                  <Building2 size={18} color="#4A60D6" style={styles.fieldIcon} />
+                  <Text style={styles.dropdownSelectorText} numberOfLines={1}>{selectedCamp}</Text>
+                </View>
+                <ChevronDown size={18} color="#64748B" />
+              </TouchableOpacity>
+
+              {showCampDropdown && (
+                <View style={styles.dropdownOptionsContainer}>
+                  {camps.map((camp, index) => (
+                    <TouchableOpacity 
+                      key={index} 
+                      style={styles.dropdownOptionItem}
+                      onPress={() => {
+                        setSelectedCamp(camp);
+                        setShowCampDropdown(false);
+                      }}
                     >
-                      <View style={styles.planHeader}>
-                        <Text style={styles.planDays}>{`${group.days} Days`}</Text>
-                        {selectedPlan === group.days && (
-                          <Check size={18} color="#f5a623" style={styles.checkmark} />
-                        )}
-                      </View>
-                      <View style={styles.planFooter}>
-                        <Clock size={14} color="#999" />
-                        <Text style={styles.planCodeCount}>{group.vouchers.length} available</Text>
-                      </View>
+                      <Text style={styles.dropdownOptionText}>{camp}</Text>
                     </TouchableOpacity>
                   ))}
-                </View>
-              ) : (
-                <View style={styles.noCodesBox}>
-                  <Text style={styles.noCodesTitle}>No active recharge plans</Text>
-                  <Text style={styles.noCodesDesc}>
-                    There are no available active codes to recharge right now.
-                  </Text>
                 </View>
               )}
             </View>
 
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Selected Plan</Text>
-              <View style={styles.planSummaryCard}>
-                <Text style={styles.planSummaryText}>
-                  {selectedPlan} Days
-                </Text>
-                <Text style={styles.planSummarySubtext}>
-                  Matching active recharge code is selected automatically.
-                </Text>
+            {/* Mobile Number Input */}
+            <View style={styles.fieldSection}>
+              <Text style={styles.fieldLabel}>Mobile Number</Text>
+              <View style={styles.inputWrapper}>
+                <Phone size={18} color="#4A60D6" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Mobile Number"
+                  placeholderTextColor="#94a3b8"
+                  value={mobileNumber}
+                  onChangeText={setMobileNumber}
+                  keyboardType="phone-pad"
+                />
               </View>
+            </View>
 
-              {!selectedCode ? (
-                <View style={styles.noCodesBox}>
-                  <Text style={styles.noCodesTitle}>Plan unavailable</Text>
-                  <Text style={styles.noCodesDesc}>
-                    There are no available codes for this plan. Choose another day.
+            {/* Choose the Validity Dropdown */}
+            <View style={styles.fieldSection}>
+              <Text style={styles.fieldLabel}>Choose the Validity</Text>
+              <TouchableOpacity 
+                style={styles.dropdownSelector} 
+                onPress={() => {
+                  setShowValidityDropdown(!showValidityDropdown);
+                  setShowCampDropdown(false);
+                }}
+              >
+                <View style={styles.dropdownSelectorLeft}>
+                  <View style={styles.checkmarkIconBg}>
+                    <Check size={12} color="#ffffff" />
+                  </View>
+                  <Text style={styles.dropdownSelectorText}>
+                    {rechargeMode === "manual" ? "Manual Code" : `${selectedPlan} Days`}
                   </Text>
                 </View>
-              ) : null}
+                <ChevronDown size={18} color="#64748B" />
+              </TouchableOpacity>
+
+              {showValidityDropdown && (
+                <View style={styles.dropdownOptionsContainer}>
+                  <TouchableOpacity 
+                    style={styles.dropdownOptionItem}
+                    onPress={() => {
+                      setRechargeMode("manual");
+                      setShowValidityDropdown(false);
+                    }}
+                  >
+                    <Text style={styles.dropdownOptionText}>Manual Code Entry</Text>
+                  </TouchableOpacity>
+                  {planGroups.map((group) => (
+                    <TouchableOpacity 
+                      key={group.days} 
+                      style={styles.dropdownOptionItem}
+                      onPress={() => {
+                        setRechargeMode("select");
+                        handleSelectPlan(group.days);
+                        setShowValidityDropdown(false);
+                      }}
+                    >
+                      <Text style={styles.dropdownOptionText}>{group.days} Days ({group.vouchers.length} available)</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
             </View>
-          </>
-        ) : (
-          /* Manual Voucher Code Input Section */
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Voucher Code</Text>
-            <View style={styles.inputWrapper}>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter voucher code manually"
-                placeholderTextColor="#888"
-                value={manualVoucherCode}
-                onChangeText={setManualVoucherCode}
-                autoCapitalize="characters"
-                editable={!showReceipt}
-              />
+
+            {/* Manual Code Input (Visible only if rechargeMode === "manual") */}
+            {rechargeMode === "manual" && (
+              <View style={styles.fieldSection}>
+                <Text style={styles.fieldLabel}>Manual Voucher Code</Text>
+                <View style={styles.inputWrapper}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter manual 9-character code"
+                    placeholderTextColor="#94a3b8"
+                    value={manualVoucherCode}
+                    onChangeText={setManualVoucherCode}
+                    autoCapitalize="characters"
+                  />
+                </View>
+              </View>
+            )}
+
+            {/* Choose Payment Type */}
+            <View style={styles.fieldSection}>
+              <Text style={styles.fieldLabel}>Choose payment type</Text>
+              <View style={styles.segmentedControl}>
+                <TouchableOpacity 
+                  style={[styles.segmentButton, paymentType === "cash" && styles.segmentButtonActive]}
+                  onPress={() => setPaymentType("cash")}
+                >
+                  <Text style={[styles.segmentText, paymentType === "cash" && styles.segmentTextActive]}>Cash</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.segmentButton, paymentType === "credit" && styles.segmentButtonActive]}
+                  onPress={() => setPaymentType("credit")}
+                >
+                  <Text style={[styles.segmentText, paymentType === "credit" && styles.segmentTextActive]}>Credit</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-            <Text style={styles.inputHint}>Enter the 9-character code printed on your voucher card</Text>
+
+            {/* Next Button */}
+            <TouchableOpacity 
+              style={styles.nextButton}
+              onPress={() => {
+                if (!mobileNumber.trim()) {
+                  Alert.alert("Error", "Please enter mobile number");
+                  return;
+                }
+                if (mobileNumber.trim().length < 8 || mobileNumber.trim().length > 12) {
+                  Alert.alert("Error", "Mobile number should be 8-12 digits");
+                  return;
+                }
+                if (rechargeMode === "manual" && !manualVoucherCode.trim()) {
+                  Alert.alert("Error", "Please enter manual voucher code");
+                  return;
+                }
+                if (rechargeMode === "select" && !selectedCode) {
+                  Alert.alert("Error", "No available vouchers for selected plan");
+                  return;
+                }
+                setStep("confirmation");
+              }}
+            >
+              <Text style={styles.nextButtonText}>Next</Text>
+            </TouchableOpacity>
           </View>
         )}
 
-        {/* Confirm Button */}
-        <View style={styles.actionSection}>
-          <TouchableOpacity
-            style={[
-              styles.confirmButton,
-              (rechargeMode === "select"
-                ? (!selectedCode || !mobileNumber.trim())
-                : (!manualVoucherCode.trim() || !mobileNumber.trim())) && styles.confirmButtonDisabled,
-            ]}
-            onPress={handleConfirmRecharge}
-            disabled={
-              rechargeMode === "select"
-                ? (!selectedCode || !mobileNumber.trim() || !!processingCode)
-                : (!manualVoucherCode.trim() || !mobileNumber.trim() || !!processingCode)
-            }
-          >
-            {processingCode ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <>
-                <Text style={styles.confirmButtonText}>Confirm Recharge</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        {/* Receipt Modal */}
-        {showReceipt && lastTransaction && (
-          <View style={styles.receiptOverlay}>
+        {step === "confirmation" && (
+          <View style={styles.confirmationContainer}>
             <View style={styles.receiptCard}>
-              <View style={styles.receiptSuccess}>
-                <Check size={40} color="#2ecc71" />
+              <Text style={styles.confirmHeaderTitle}>Confirm Details</Text>
+              <Text style={styles.confirmHeaderSub}>Please verify customer recharge information</Text>
+
+              <View style={styles.confirmDetailsWrapper}>
+                <View style={styles.receiptRow}>
+                  <Text style={styles.receiptLabel}>Selected Camp</Text>
+                  <Text style={styles.receiptValue}>{selectedCamp}</Text>
+                </View>
+                <View style={styles.receiptDivider} />
+
+                <View style={styles.receiptRow}>
+                  <Text style={styles.receiptLabel}>Mobile Number</Text>
+                  <Text style={styles.receiptValue}>{mobileNumber}</Text>
+                </View>
+                <View style={styles.receiptDivider} />
+
+                <View style={styles.receiptRow}>
+                  <Text style={styles.receiptLabel}>Validity Period</Text>
+                  <Text style={styles.receiptValue}>
+                    {rechargeMode === "manual" ? "Manual Voucher Code" : `${selectedPlan} Days`}
+                  </Text>
+                </View>
+                <View style={styles.receiptDivider} />
+
+                {rechargeMode === "manual" && (
+                  <>
+                    <View style={styles.receiptRow}>
+                      <Text style={styles.receiptLabel}>Voucher Code</Text>
+                      <Text style={styles.receiptValue}>{manualVoucherCode}</Text>
+                    </View>
+                    <View style={styles.receiptDivider} />
+                  </>
+                )}
+
+                <View style={styles.receiptRow}>
+                  <Text style={styles.receiptLabel}>Payment Method</Text>
+                  <Text style={[styles.receiptValue, {textTransform: 'capitalize'}]}>{paymentType}</Text>
+                </View>
+              </View>
+
+              <View style={styles.confirmActionRow}>
+                <TouchableOpacity 
+                  style={styles.confirmBackBtn} 
+                  onPress={() => setStep("entry")}
+                >
+                  <Text style={styles.confirmBackBtnText}>Back</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.confirmSubmitBtn}
+                  onPress={handleConfirmRecharge}
+                  disabled={!!processingCode}
+                >
+                  {processingCode ? (
+                    <ActivityIndicator size="small" color="#ffffff" />
+                  ) : (
+                    <Text style={styles.confirmSubmitBtnText}>Confirm & Recharge</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {step === "success" && lastTransaction && (
+          <View style={styles.successContainer}>
+            <View style={styles.receiptCard}>
+              <View style={styles.successCheckIconBg}>
+                <Check size={36} color="#ffffff" />
               </View>
               <Text style={styles.receiptTitle}>Success!</Text>
               <Text style={styles.receiptSubtitle}>Thank You For Your Recharge</Text>
 
-              <View style={styles.receiptContent}>
+              <View style={styles.confirmDetailsWrapper}>
                 <View style={styles.receiptRow}>
                   <Text style={styles.receiptLabel}>Voucher Code</Text>
-                  <Text style={styles.receiptValue}>{lastTransaction.code}</Text>
+                  <Text style={styles.receiptValueCode}>{lastTransaction.code}</Text>
                 </View>
                 <View style={styles.receiptDivider} />
+
                 <View style={styles.receiptRow}>
                   <Text style={styles.receiptLabel}>Mobile Number</Text>
                   <Text style={styles.receiptValue}>{lastTransaction.mobile}</Text>
                 </View>
                 <View style={styles.receiptDivider} />
+
                 <View style={styles.receiptRow}>
                   <Text style={styles.receiptLabel}>Validity</Text>
-                  <Text style={styles.receiptValue}>{lastTransaction.validity} Days</Text>
+                  <Text style={styles.receiptValue}>
+                    {lastTransaction.validity > 0 ? `${lastTransaction.validity} Days` : "Custom"}
+                  </Text>
                 </View>
                 <View style={styles.receiptDivider} />
+
+                <View style={styles.receiptRow}>
+                  <Text style={styles.receiptLabel}>Selected Camp</Text>
+                  <Text style={styles.receiptValue}>{lastTransaction.camp}</Text>
+                </View>
+                <View style={styles.receiptDivider} />
+
+                <View style={styles.receiptRow}>
+                  <Text style={styles.receiptLabel}>Payment Type</Text>
+                  <Text style={[styles.receiptValue, {textTransform: 'capitalize'}]}>{lastTransaction.paymentType}</Text>
+                </View>
+                <View style={styles.receiptDivider} />
+
                 <View style={styles.receiptRow}>
                   <Text style={styles.receiptLabel}>Time</Text>
                   <Text style={styles.receiptValue}>{lastTransaction.timestamp}</Text>
                 </View>
               </View>
 
-              <TouchableOpacity
-                style={styles.receiptButton}
-                onPress={() => setShowReceipt(false)}
+              <TouchableOpacity 
+                style={styles.doneBtn}
+                onPress={() => {
+                  setStep("entry");
+                  setLastTransaction(null);
+                }}
               >
-                <Text style={styles.receiptButtonText}>Done</Text>
+                <Text style={styles.doneBtnText}>Done</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -499,19 +657,134 @@ export default function RechargeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#1e1e1e",
+    backgroundColor: "#F8FAFC",
   },
-  scrollContent: {
+  topProfileBar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#ffffff",
     paddingHorizontal: 16,
-    paddingBottom: 32,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderColor: "#F1F5F9",
+  },
+  welcomeInfo: {
+    flex: 1,
+  },
+  welcomeHello: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#1E293B",
+  },
+  welcomeSubtitle: {
+    fontSize: 12,
+    color: "#64748B",
+    marginTop: 2,
+  },
+  headerRightControls: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  bellButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#F8FAFC",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  profileBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#EEF2FF",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    gap: 8,
+  },
+  profileBadgeTextContainer: {
+    marginLeft: 4,
+  },
+  profileBadgeName: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#4A60D6",
+  },
+  profileBadgeRole: {
+    fontSize: 8,
+    color: "#64748B",
+    fontWeight: "bold",
+  },
+  profileAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#4A60D6",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  profileAvatarText: {
+    color: "#ffffff",
+    fontSize: 12,
+    fontWeight: "bold",
+  },
+
+  // Steps Tracker
+  stepsContainer: {
+    flexDirection: "row",
+    backgroundColor: "#ffffff",
+    borderBottomWidth: 1,
+    borderColor: "#E2E8F0",
+    height: 48,
+    alignItems: "center",
+  },
+  stepItem: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    height: "100%",
+  },
+  stepItemActive: {
+    // optional styling
+  },
+  stepText: {
+    fontSize: 13,
+    color: "#94A3B8",
+    fontWeight: "600",
+  },
+  stepTextActive: {
+    color: "#4A60D6",
+    fontWeight: "700",
+  },
+  stepUnderline: {
+    position: "absolute",
+    bottom: 0,
+    width: "60%",
+    height: 3,
+    backgroundColor: "#4A60D6",
+    borderTopLeftRadius: 3,
+    borderTopRightRadius: 3,
+  },
+
+  // Content
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 40,
   },
   centered: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "#F8FAFC",
   },
   loadingText: {
-    color: "#fff",
+    color: "#64748B",
     fontSize: 14,
     marginTop: 12,
     fontWeight: "500",
@@ -521,302 +794,312 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 16,
+    backgroundColor: "#F8FAFC",
   },
   errorText: {
-    color: "#ef5350",
+    color: "#EF4444",
     fontSize: 14,
     textAlign: "center",
     marginBottom: 16,
   },
   retryButton: {
-    backgroundColor: "#f5a623",
+    backgroundColor: "#4A60D6",
     paddingHorizontal: 24,
     paddingVertical: 10,
     borderRadius: 8,
   },
   retryButtonText: {
-    color: "#000",
+    color: "#ffffff",
     fontWeight: "bold",
   },
 
-  // Hero Section
-  hero: {
-    alignItems: "center",
-    paddingVertical: 32,
-    marginTop: 16,
+  // Form
+  formContainer: {
+    width: "100%",
   },
-  heroIcon: {
-    marginBottom: 16,
+  fieldSection: {
+    marginBottom: 20,
   },
-  heroTitle: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#fff",
+  fieldLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#64748B",
     marginBottom: 8,
   },
-  heroSubtitle: {
+  dropdownSelector: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#ffffff",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    paddingHorizontal: 14,
+    height: 50,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  dropdownSelectorLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flex: 1,
+  },
+  fieldIcon: {
+    marginRight: 2,
+  },
+  dropdownSelectorText: {
     fontSize: 14,
-    color: "#999",
+    color: "#1E293B",
+    fontWeight: "500",
+    flex: 1,
   },
-
-  // Sections
-  section: {
-    marginTop: 24,
+  checkmarkIconBg: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#10B981",
+    justifyContent: "center",
+    alignItems: "center",
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#fff",
-    marginBottom: 12,
+  dropdownOptionsContainer: {
+    backgroundColor: "#ffffff",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    marginTop: 4,
+    paddingVertical: 4,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 4,
   },
-
-  // Mobile Input
+  dropdownOptionItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+  },
+  dropdownOptionText: {
+    fontSize: 14,
+    color: "#1E293B",
+  },
   inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#2a2a2a",
-    borderRadius: 8,
-    paddingHorizontal: 12,
+    backgroundColor: "#ffffff",
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#3a3a3a",
+    borderColor: "#E2E8F0",
+    paddingHorizontal: 14,
+    height: 50,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 1,
   },
   inputIcon: {
-    marginRight: 10,
+    marginRight: 8,
   },
   input: {
     flex: 1,
-    color: "#fff",
-    paddingVertical: 12,
+    color: "#1E293B",
     fontSize: 14,
+    height: "100%",
   },
-  inputHint: {
-    fontSize: 12,
-    color: "#888",
-    marginTop: 8,
-  },
-
-  // Plans Grid
-  plansGrid: {
+  segmentedControl: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-    justifyContent: "space-between",
+    backgroundColor: "#ffffff",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    padding: 4,
+    height: 50,
+    alignItems: "center",
   },
-  planCard: {
+  segmentButton: {
     flex: 1,
-    minWidth: "45%",
-    backgroundColor: "#2a2a2a",
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 2,
-    borderColor: "#3a3a3a",
-  },
-  planCardSelected: {
-    borderColor: "#f5a623",
-    backgroundColor: "#2d2416",
-  },
-  planHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  planDays: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#fff",
-  },
-  checkmark: {
-    marginRight: 0,
-  },
-  planFooter: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  planCodeCount: {
-    fontSize: 12,
-    color: "#999",
-  },
-
-  // No Codes Box
-  noCodesBox: {
-    backgroundColor: "#2a2a2a",
-    borderRadius: 8,
-    padding: 24,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#3a3a3a",
-  },
-  noCodesTitle: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: "#fff",
-    marginBottom: 4,
-  },
-  noCodesDesc: {
-    fontSize: 12,
-    color: "#888",
-    textAlign: "center",
-  },
-
-  planSummaryCard: {
-    backgroundColor: "#2a2a2a",
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "#3a3a3a",
-    marginBottom: 12,
-  },
-  planSummaryText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#fff",
-    marginBottom: 6,
-  },
-  planSummarySubtext: {
-    fontSize: 12,
-    color: "#999",
-  },
-
-  // Action Section
-  actionSection: {
-    marginTop: 24,
-    marginBottom: 16,
-  },
-  confirmButton: {
-    backgroundColor: "#f5a623",
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  confirmButtonDisabled: {
-    opacity: 0.5,
-  },
-  confirmButtonText: {
-    color: "#000",
-    fontWeight: "bold",
-    fontSize: 14,
-  },
-
-  // Receipt Overlay
-  receiptOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    height: "100%",
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 16,
-    zIndex: 1000,
+    borderRadius: 8,
+  },
+  segmentButtonActive: {
+    backgroundColor: "#EFF6FF",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+  },
+  segmentText: {
+    fontSize: 14,
+    color: "#64748B",
+    fontWeight: "600",
+  },
+  segmentTextActive: {
+    color: "#4A60D6",
+  },
+  nextButton: {
+    backgroundColor: "#4A60D6",
+    height: 50,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 10,
+    shadowColor: "#4A60D6",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  nextButtonText: {
+    color: "#ffffff",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+
+  // Confirmation / Receipt Cards
+  confirmationContainer: {
+    width: "100%",
+    alignItems: "center",
+  },
+  successContainer: {
+    width: "100%",
+    alignItems: "center",
   },
   receiptCard: {
-    backgroundColor: "#2a2a2a",
+    backgroundColor: "#ffffff",
     borderRadius: 16,
-    padding: 24,
-    width: "90%",
-    maxWidth: 400,
+    padding: 20,
+    width: "100%",
     borderWidth: 1,
-    borderColor: "#3a3a3a",
-  },
-  receiptSuccess: {
+    borderColor: "#E2E8F0",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
+    elevation: 2,
     alignItems: "center",
-    marginBottom: 16,
   },
-  receiptTitle: {
-    fontSize: 22,
+  confirmHeaderTitle: {
+    fontSize: 18,
     fontWeight: "bold",
-    color: "#fff",
-    textAlign: "center",
-    marginBottom: 4,
+    color: "#1E293B",
+    marginBottom: 6,
   },
-  receiptSubtitle: {
-    fontSize: 13,
-    color: "#888",
+  confirmHeaderSub: {
+    fontSize: 12,
+    color: "#64748B",
     textAlign: "center",
-    marginBottom: 16,
+    marginBottom: 20,
   },
-  receiptContent: {
-    backgroundColor: "#1a1a1a",
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
+  confirmDetailsWrapper: {
+    backgroundColor: "#F8FAFC",
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+    width: "100%",
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
   },
   receiptRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: 8,
+    paddingVertical: 12,
   },
   receiptLabel: {
-    fontSize: 12,
-    color: "#888",
+    fontSize: 13,
+    color: "#64748B",
   },
   receiptValue: {
     fontSize: 13,
+    fontWeight: "600",
+    color: "#1E293B",
+  },
+  receiptValueCode: {
+    fontSize: 14,
     fontWeight: "bold",
-    color: "#f5a623",
+    color: "#4A60D6",
   },
   receiptDivider: {
     height: 1,
-    backgroundColor: "#3a3a3a",
+    backgroundColor: "#E2E8F0",
   },
-  receiptButton: {
-    backgroundColor: "#f5a623",
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  receiptButtonText: {
-    color: "#000",
-    fontWeight: "bold",
-    fontSize: 14,
-  },
-  tabContainer: {
+  confirmActionRow: {
     flexDirection: "row",
-    backgroundColor: "#2a2a2a",
-    borderRadius: 8,
-    padding: 4,
-    borderWidth: 1,
-    borderColor: "#3a3a3a",
+    width: "100%",
+    gap: 12,
   },
-  tabButton: {
+  confirmBackBtn: {
     flex: 1,
-    paddingVertical: 8,
-    alignItems: "center",
-    borderRadius: 6,
-  },
-  tabButtonActive: {
-    backgroundColor: "#f5a623",
-  },
-  tabText: {
-    color: "#888",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  tabTextActive: {
-    color: "#000",
-  },
-  operatorBadge: {
-    backgroundColor: "#1a1a1a",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    height: 46,
     borderRadius: 8,
-    marginHorizontal: 16,
-    marginTop: -8,
-    marginBottom: 16,
-    alignSelf: "flex-start",
+    backgroundColor: "#F1F5F9",
+    justifyContent: "center",
+    alignItems: "center",
     borderWidth: 1,
-    borderColor: "#3a3a3a",
+    borderColor: "#E2E8F0",
   },
-  operatorText: {
-    color: "#888",
-    fontSize: 12,
+  confirmBackBtnText: {
+    color: "#475569",
+    fontWeight: "600",
+    fontSize: 14,
   },
-  operatorName: {
-    color: "#f5a623",
+  confirmSubmitBtn: {
+    flex: 2,
+    height: 46,
+    borderRadius: 8,
+    backgroundColor: "#4A60D6",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  confirmSubmitBtnText: {
+    color: "#ffffff",
     fontWeight: "bold",
+    fontSize: 14,
+  },
+
+  // Success state specific
+  successCheckIconBg: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "#10B981",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
+    shadowColor: "#10B981",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  receiptTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#1E293B",
+    marginBottom: 4,
+  },
+  receiptSubtitle: {
+    fontSize: 13,
+    color: "#64748B",
+    marginBottom: 20,
+  },
+  doneBtn: {
+    backgroundColor: "#4A60D6",
+    height: 46,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+    width: "100%",
+  },
+  doneBtnText: {
+    color: "#ffffff",
+    fontWeight: "bold",
+    fontSize: 15,
   },
 });

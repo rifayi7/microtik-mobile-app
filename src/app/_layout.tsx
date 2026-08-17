@@ -1,14 +1,25 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
-import { useColorScheme } from 'react-native';
+import { DefaultTheme, ThemeProvider } from 'expo-router';
 import { Stack } from 'expo-router';
 import { GatewayProvider } from '../contexts/gateway-context';
 
-export default function RootLayout() {
-  const colorScheme = useColorScheme();
+const CustomLightTheme = {
+  ...DefaultTheme,
+  dark: false,
+  colors: {
+    ...DefaultTheme.colors,
+    primary: '#4A60D6',
+    background: '#F8FAFC',
+    card: '#ffffff',
+    text: '#1e293b',
+    border: '#e2e8f0',
+    notification: '#4A60D6',
+  },
+};
 
+export default function RootLayout() {
   return (
     <GatewayProvider>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <ThemeProvider value={CustomLightTheme}>
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="index" />
           <Stack.Screen name="(dashboard)" />

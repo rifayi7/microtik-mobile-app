@@ -1,97 +1,154 @@
 import { Tabs, useRouter } from "expo-router";
+import { useEffect, useState } from "react";
 import {
-    LayoutDashboard,
-    LogOut,
-    ScrollText,
-    ShoppingCart,
-    Users,
-    Wifi,
+  LayoutDashboard,
+  LogOut,
+  Clock,
+  TrendingUp,
+  Ticket,
+  MoreHorizontal,
 } from "lucide-react-native";
-import { StyleSheet, Text, TouchableOpacity } from "react-native";
+import { Platform, StyleSheet, Text, Pressable } from "react-native";
 import { useGateway } from "../../contexts/gateway-context";
+import { ConfirmModal } from "../../components/confirm-modal";
 
 export default function DashboardLayout() {
   const router = useRouter();
-  const { activeRouter, disconnectRouter } = useGateway();
+  const { activeRouter, isConnected, disconnectRouter } = useGateway();
+  const [showDisconnectModal, setShowDisconnectModal] = useState(false);
 
-  const handleDisconnect = async () => {
+  // Reactively navigate back to router selection when disconnected.
+  useEffect(() => {
+    if (!isConnected) {
+      if (Platform.OS === "web") {
+        window.location.href = "/";
+      } else {
+        router.replace("/");
+      }
+    }
+  }, [isConnected]);
+
+  const doDisconnect = async () => {
     await disconnectRouter();
-    router.replace("/");
+    if (Platform.OS === "web") {
+      window.location.href = "/";
+    } else {
+      router.replace("/");
+    }
+  };
+
+  const handleConfirmDisconnect = async () => {
+    setShowDisconnectModal(false);
+    await doDisconnect();
   };
 
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: true,
-        headerStyle: {
-          backgroundColor: "#1e1e1e",
-          borderBottomWidth: 1,
-          borderBottomColor: "#2a2a2a",
-        },
-        headerTitleStyle: {
-          color: "#fff",
-          fontSize: 16,
-          fontWeight: "bold",
-        },
-        headerTitle: activeRouter ? `${activeRouter.sessionName.toUpperCase()}` : "DASHBOARD",
-        headerRight: () => (
-          <TouchableOpacity style={styles.disconnectBtn} onPress={handleDisconnect}>
-            <LogOut size={16} color="#ef5350" />
-            <Text style={styles.disconnectText}>Exit</Text>
-          </TouchableOpacity>
-        ),
-        tabBarStyle: {
-          backgroundColor: "#1a1a1a",
-          borderTopWidth: 1,
-          borderTopColor: "#2a2a2a",
-          height: 60,
-          paddingBottom: 8,
-          paddingTop: 8,
-        },
-        tabBarActiveTintColor: "#f5a623",
-        tabBarInactiveTintColor: "#888",
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: "600",
-        },
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: "Dashboard",
-          tabBarIcon: ({ color, size }) => <LayoutDashboard size={size} color={color} />,
+    <>
+      <Tabs
+        screenOptions={{
+          headerShown: true,
+          headerTitleAlign: "left",
+          headerTitleContainerStyle: {
+            maxWidth: "60%",
+          },
+          headerRightContainerStyle: {
+            paddingRight: 16,
+          },
+          headerStyle: {
+            backgroundColor: "#ffffff",
+            borderBottomWidth: 1,
+            borderBottomColor: "#e2e8f0",
+            elevation: 0,
+            shadowOpacity: 0,
+          },
+          headerTitleStyle: {
+            color: "#1e293b",
+            fontSize: 16,
+            fontWeight: "bold",
+          },
+          headerTitle: activeRouter ? `${activeRouter.sessionName.toUpperCase()}` : "SMART WIFI",
+          headerRight: () => (
+            <Pressable 
+              style={({ pressed }) => [
+                styles.disconnectBtn,
+                pressed && { opacity: 0.6 }
+              ]}
+              onPress={() => setShowDisconnectModal(true)}
+              hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+            >
+              <LogOut size={16} color="#ef4444" />
+              <Text style={styles.disconnectText}>Exit</Text>
+            </Pressable>
+          ),
+          tabBarStyle: {
+            backgroundColor: "#ffffff",
+            borderTopWidth: 1,
+            borderTopColor: "#e2e8f0",
+            height: 60,
+            paddingBottom: 8,
+            paddingTop: 8,
+            elevation: 8,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: -2 },
+            shadowOpacity: 0.05,
+            shadowRadius: 3,
+          },
+          tabBarActiveTintColor: "#4A60D6",
+          tabBarInactiveTintColor: "#94a3b8",
+          tabBarLabelStyle: {
+            fontSize: 11,
+            fontWeight: "600",
+          },
         }}
+      >
+        <Tabs.Screen
+          name="dashboard-main"
+          options={{
+            title: "Dashboard",
+            tabBarIcon: ({ color }) => <LayoutDashboard size={22} color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="recharge"
+          options={{
+            title: "Sales",
+            tabBarIcon: ({ color }) => <TrendingUp size={22} color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="sessions"
+          options={{
+            title: "History",
+            tabBarIcon: ({ color }) => <Clock size={22} color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="users"
+          options={{
+            title: "Coupon",
+            tabBarIcon: ({ color }) => <Ticket size={22} color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="profiles"
+          options={{
+            title: "More",
+            tabBarIcon: ({ color }) => <MoreHorizontal size={22} color={color} />,
+          }}
+        />
+      </Tabs>
+
+      <ConfirmModal
+        visible={showDisconnectModal}
+        title="Disconnect Device"
+        message="Are you sure you want to disconnect from this router?"
+        confirmText="Disconnect"
+        cancelText="Cancel"
+        isDestructive={true}
+        onConfirm={handleConfirmDisconnect}
+        onCancel={() => setShowDisconnectModal(false)}
       />
-      <Tabs.Screen
-        name="users"
-        options={{
-          title: "Users",
-          tabBarIcon: ({ color, size }) => <Users size={size} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="sessions"
-        options={{
-          title: "Sessions",
-          tabBarIcon: ({ color, size }) => <Wifi size={size} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="profiles"
-        options={{
-          title: "Profiles",
-          tabBarIcon: ({ color, size }) => <ScrollText size={size} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="recharge"
-        options={{
-          title: "Recharge",
-          tabBarIcon: ({ color, size }) => <ShoppingCart size={size} color={color} />,
-        }}
-      />
-    </Tabs>
+    </>
   );
 }
 
@@ -99,15 +156,14 @@ const styles = StyleSheet.create({
   disconnectBtn: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#2d1e20",
+    backgroundColor: "#fee2e2",
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 6,
-    marginRight: 16,
     gap: 4,
   },
   disconnectText: {
-    color: "#ef5350",
+    color: "#ef4444",
     fontSize: 12,
     fontWeight: "bold",
   },

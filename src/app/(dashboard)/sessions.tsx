@@ -7,50 +7,55 @@ import {
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   SafeAreaView,
   StatusBar,
 } from "react-native";
-import { Search, ShieldAlert, Power, Wifi, ShieldCheck } from "lucide-react-native";
+import { Search, ShieldAlert, Clock, CheckCircle } from "lucide-react-native";
 import { useGateway } from "../../contexts/gateway-context";
 import { fetchFromGateway } from "../../lib/api-client";
 
-interface ActiveSession {
-  id: string;
-  username: string;
-  routerId: string;
-  routerName: string;
-  ipAddress: string;
-  macAddress: string;
-  uptime: string;
-  download: string;
-  upload: string;
-  profile: string;
+interface SalesLog {
+  id?: string;
+  code: string;
+  validity: number;
+  mobile: string;
+  timestamp: string;
+  seller: string;
 }
 
-export default function SessionsScreen() {
+export default function HistoryScreen() {
   const { gatewayUrl, activeRouter } = useGateway();
-  const [sessions, setSessions] = useState<ActiveSession[]>([]);
+  const [logs, setLogs] = useState<SalesLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
 
-  const loadSessions = useCallback(async (isRefresh = false) => {
-    if (!activeRouter) return;
+  const loadHistory = useCallback(async (isRefresh = false) => {
+    if (!activeRouter) {
+      setLogs([]);
+      return;
+    }
     if (!isRefresh) setLoading(true);
     setError(null);
 
     try {
-      const payload = await fetchFromGateway<{ sessions: ActiveSession[] }>(
+      const payload = await fetchFromGateway<{ success: boolean; sales: SalesLog[] }>(
         gatewayUrl,
-        "/api/mikrotik/sessions",
+        "/api/mikrotik/reports",
         activeRouter
       );
-      setSessions(payload.sessions);
+      if (payload.success && payload.sales) {
+        // Sort by timestamp desc
+        const sorted = [...payload.sales].sort((a, b) => 
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        );
+        setLogs(sorted);
+      } else {
+        setLogs([]);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load active sessions");
+      setError(err instanceof Error ? err.message : "Failed to load transaction history");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -58,111 +63,63 @@ export default function SessionsScreen() {
   }, [gatewayUrl, activeRouter]);
 
   useEffect(() => {
-    void loadSessions();
-  }, [loadSessions]);
+    if (!activeRouter) {
+      setLogs([]);
+      return;
+    }
+    void loadHistory();
+  }, [loadHistory, activeRouter]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    void loadSessions(true);
+    void loadHistory(true);
   };
 
-  const handleDisconnect = async (sessionId: string, username: string) => {
-    if (!activeRouter) return;
-
-    Alert.alert(
-      "Disconnect Session",
-      `Are you sure you want to disconnect ${username}?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Disconnect",
-          style: "destructive",
-          onPress: async () => {
-            setDisconnectingId(sessionId);
-            try {
-              // Call DELETE endpoint in Next.js backend
-              await fetchFromGateway(
-                gatewayUrl,
-                "/api/mikrotik/sessions",
-                activeRouter,
-                {
-                  method: "DELETE",
-                  body: { sessionId },
-                }
-              );
-              // Reload
-              void loadSessions(true);
-              Alert.alert("Success", `Disconnected session for ${username}`);
-            } catch (err) {
-              Alert.alert(
-                "Error",
-                err instanceof Error ? err.message : "Failed to disconnect session"
-              );
-            } finally {
-              setDisconnectingId(null);
-            }
-          },
-        },
-      ]
+  const filteredLogs = useMemo(() => {
+    return logs.filter(
+      (log) =>
+        (log.code && log.code.toLowerCase().includes(search.toLowerCase())) ||
+        (log.mobile && log.mobile.includes(search)) ||
+        (log.seller && log.seller.toLowerCase().includes(search.toLowerCase()))
     );
-  };
+  }, [logs, search]);
 
-  const filteredSessions = useMemo(() => {
-    return sessions.filter(
-      (s) =>
-        s.username.toLowerCase().includes(search.toLowerCase()) ||
-        s.ipAddress.includes(search) ||
-        s.macAddress.toLowerCase().includes(search.toLowerCase())
-    );
-  }, [sessions, search]);
-
-  const renderItem = ({ item }: { item: ActiveSession }) => {
-    const isDisconnecting = disconnectingId === item.id;
-
+  const renderItem = ({ item }: { item: SalesLog }) => {
     return (
-      <View style={styles.sessionCard}>
-        <View style={styles.sessionHeader}>
-          <View style={styles.sessionMain}>
-            <Text style={styles.username}>{item.username}</Text>
-            <View style={styles.serverBadge}>
-              <Text style={styles.serverBadgeText}>{item.profile}</Text>
-            </View>
+      <View style={styles.historyCard}>
+        <View style={styles.cardHeader}>
+          <View style={styles.codeContainer}>
+            <Text style={styles.codeLabel}>Voucher Code</Text>
+            <Text style={styles.codeValue}>{item.code}</Text>
           </View>
-          <TouchableOpacity
-            style={styles.disconnectBtn}
-            onPress={() => void handleDisconnect(item.id, item.username)}
-            disabled={isDisconnecting}
-          >
-            {isDisconnecting ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Power size={14} color="#ef5350" />
-            )}
-          </TouchableOpacity>
+          <View style={styles.statusBadge}>
+            <CheckCircle size={12} color="#16a34a" />
+            <Text style={styles.statusText}>Completed</Text>
+          </View>
         </View>
 
-        <View style={styles.sessionDetails}>
+        <View style={styles.cardDetails}>
           <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>IP Address:</Text>
-            <Text style={styles.detailValue}>{item.ipAddress}</Text>
+            <Text style={styles.detailLabel}>Mobile Number</Text>
+            <Text style={styles.detailValue}>{item.mobile || "N/A"}</Text>
           </View>
+          <View style={styles.divider} />
+
           <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>MAC Address:</Text>
-            <Text style={styles.macValue}>{item.macAddress}</Text>
+            <Text style={styles.detailLabel}>Validity</Text>
+            <Text style={styles.detailValue}>{item.validity} Days</Text>
           </View>
+          <View style={styles.divider} />
+
           <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Uptime:</Text>
-            <Text style={styles.detailValue}>{item.uptime}</Text>
+            <Text style={styles.detailLabel}>Salesperson</Text>
+            <Text style={[styles.detailValue, { fontWeight: "bold", color: "#4A60D6" }]}>{item.seller}</Text>
           </View>
-          <View style={styles.trafficRow}>
-            <View style={styles.trafficBox}>
-              <Text style={styles.trafficLabel}>DOWNLOAD</Text>
-              <Text style={styles.trafficValue}>{item.download}</Text>
-            </View>
-            <View style={[styles.trafficBox, styles.trafficBorderLeft]}>
-              <Text style={styles.trafficLabel}>UPLOAD</Text>
-              <Text style={styles.trafficValue}>{item.upload}</Text>
-            </View>
+          <View style={styles.divider} />
+
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Time</Text>
+            <Text style={styles.timeValue}>{item.timestamp}</Text>
           </View>
         </View>
       </View>
@@ -171,16 +128,16 @@ export default function SessionsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
 
       {/* Search Bar */}
       <View style={styles.searchBarContainer}>
         <View style={styles.searchBox}>
-          <Search size={16} color="#888" />
+          <Search size={16} color="#94a3b8" />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search sessions (User, IP, MAC)..."
-            placeholderTextColor="#888"
+            placeholder="Search history (Mobile, Code, User)..."
+            placeholderTextColor="#94a3b8"
             value={search}
             onChangeText={setSearch}
             autoCapitalize="none"
@@ -188,32 +145,33 @@ export default function SessionsScreen() {
         </View>
       </View>
 
-      {loading && sessions.length === 0 ? (
+      {loading && logs.length === 0 ? (
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#f5a623" />
-          <Text style={styles.loadingText}>Loading active sessions...</Text>
+          <ActivityIndicator size="large" color="#4A60D6" />
+          <Text style={styles.loadingText}>Loading transactions...</Text>
         </View>
       ) : error ? (
         <View style={styles.centered}>
-          <ShieldAlert size={36} color="#ef5350" />
+          <ShieldAlert size={36} color="#ef4444" style={{ marginBottom: 12 }} />
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={() => void loadSessions()}>
+          <TouchableOpacity style={styles.retryBtn} onPress={() => void loadHistory()}>
             <Text style={styles.retryBtnText}>Retry</Text>
           </TouchableOpacity>
         </View>
-      ) : filteredSessions.length === 0 ? (
+      ) : filteredLogs.length === 0 ? (
         <View style={styles.centered}>
-          <Wifi size={36} color="#444" />
-          <Text style={styles.emptyText}>No active sessions</Text>
+          <Clock size={36} color="#94a3b8" style={{ marginBottom: 12 }} />
+          <Text style={styles.emptyText}>No recharge logs found</Text>
         </View>
       ) : (
         <FlatList
-          data={filteredSessions}
-          keyExtractor={(item) => item.id}
+          data={filteredLogs}
+          keyExtractor={(item, index) => item.code + index}
           renderItem={renderItem}
           contentContainerStyle={styles.listContainer}
           refreshing={refreshing}
           onRefresh={onRefresh}
+          showsVerticalScrollIndicator={false}
         />
       )}
     </SafeAreaView>
@@ -223,30 +181,33 @@ export default function SessionsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#121212",
+    backgroundColor: "#F8FAFC",
   },
   searchBarContainer: {
     padding: 12,
-    backgroundColor: "#1e1e1e",
+    backgroundColor: "#ffffff",
     borderBottomWidth: 1,
-    borderBottomColor: "#2a2a2a",
+    borderBottomColor: "#e2e8f0",
   },
   searchBox: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#2a2a2a",
-    borderRadius: 8,
+    backgroundColor: "#F8FAFC",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
     paddingHorizontal: 12,
-    height: 40,
+    height: 44,
     gap: 8,
   },
   searchInput: {
     flex: 1,
-    color: "#fff",
+    color: "#1e293b",
     fontSize: 14,
   },
   listContainer: {
     padding: 12,
+    paddingBottom: 24,
   },
   centered: {
     flex: 1,
@@ -255,124 +216,106 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   loadingText: {
-    color: "#aaa",
+    color: "#64748b",
     marginTop: 10,
     fontSize: 15,
   },
   errorText: {
-    color: "#ef5350",
+    color: "#ef4444",
     textAlign: "center",
     fontSize: 14,
-    marginTop: 8,
+    fontWeight: "600",
   },
   retryBtn: {
-    backgroundColor: "#f5a623",
-    borderRadius: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    backgroundColor: "#4A60D6",
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
     marginTop: 12,
   },
   retryBtnText: {
-    color: "#121212",
+    color: "#ffffff",
     fontWeight: "bold",
     fontSize: 13,
   },
   emptyText: {
-    color: "#888",
+    color: "#64748b",
     fontSize: 14,
-    marginTop: 8,
+    fontWeight: "500",
   },
-  sessionCard: {
-    backgroundColor: "#1e1e1e",
+  historyCard: {
+    backgroundColor: "#ffffff",
     borderWidth: 1,
-    borderColor: "#2a2a2a",
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 10,
+    borderColor: "#e2e8f0",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: "#0f172a",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.02,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  sessionHeader: {
+  cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     borderBottomWidth: 1,
-    borderBottomColor: "#2a2a2a",
-    paddingBottom: 8,
-    marginBottom: 8,
+    borderBottomColor: "#f1f5f9",
+    paddingBottom: 10,
+    marginBottom: 10,
   },
-  sessionMain: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
+  codeContainer: {
     flex: 1,
   },
-  username: {
-    fontSize: 14,
+  codeLabel: {
+    fontSize: 10,
+    color: "#64748b",
+    textTransform: "uppercase",
     fontWeight: "bold",
-    color: "#fff",
+    letterSpacing: 0.5,
   },
-  serverBadge: {
-    backgroundColor: "#2a2a2a",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  serverBadgeText: {
-    color: "#aaa",
-    fontSize: 9,
+  codeValue: {
+    fontSize: 15,
     fontWeight: "bold",
+    color: "#4A60D6",
+    marginTop: 2,
   },
-  disconnectBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
-    backgroundColor: "#2d1e20",
-    justifyContent: "center",
+  statusBadge: {
+    flexDirection: "row",
     alignItems: "center",
+    backgroundColor: "#dcfce7",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
   },
-  sessionDetails: {},
+  statusText: {
+    color: "#16a34a",
+    fontSize: 11,
+    fontWeight: "bold",
+  },
+  cardDetails: {},
   detailRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: 2,
+    paddingVertical: 8,
   },
   detailLabel: {
-    fontSize: 12,
-    color: "#888",
+    fontSize: 13,
+    color: "#64748b",
   },
   detailValue: {
-    fontSize: 12,
-    color: "#fff",
+    fontSize: 13,
+    color: "#1e293b",
     fontWeight: "500",
   },
-  macValue: {
-    fontSize: 11,
-    color: "#ccc",
-    fontFamily: "System",
-  },
-  trafficRow: {
-    flexDirection: "row",
-    backgroundColor: "#121212",
-    borderRadius: 6,
-    padding: 8,
-    marginTop: 8,
-  },
-  trafficBox: {
-    flex: 1,
-    alignItems: "center",
-  },
-  trafficBorderLeft: {
-    borderLeftWidth: 1,
-    borderLeftColor: "#2a2a2a",
-  },
-  trafficLabel: {
-    fontSize: 9,
-    color: "#888",
-    fontWeight: "bold",
-    marginBottom: 2,
-  },
-  trafficValue: {
+  timeValue: {
     fontSize: 12,
-    fontWeight: "bold",
-    color: "#26c6da",
+    color: "#475569",
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#f1f5f9",
   },
 });
