@@ -11,11 +11,13 @@ import {
 import { Platform, StyleSheet, Text, Pressable } from "react-native";
 import { useGateway } from "../../contexts/gateway-context";
 import { ConfirmModal } from "../../components/confirm-modal";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function DashboardLayout() {
   const router = useRouter();
   const { activeRouter, isConnected, disconnectRouter } = useGateway();
   const [showDisconnectModal, setShowDisconnectModal] = useState(false);
+  const insets = useSafeAreaInsets();
 
   // Reactively navigate back to router selection when disconnected.
   useEffect(() => {
@@ -84,8 +86,8 @@ export default function DashboardLayout() {
             backgroundColor: "#ffffff",
             borderTopWidth: 1,
             borderTopColor: "#e2e8f0",
-            height: 60,
-            paddingBottom: 8,
+            height: Platform.OS === "ios" ? 50 + insets.bottom : (insets.bottom > 0 ? 52 + insets.bottom : 60),
+            paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
             paddingTop: 8,
             elevation: 8,
             shadowColor: "#000",

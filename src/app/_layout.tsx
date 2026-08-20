@@ -1,6 +1,7 @@
 import { DefaultTheme, ThemeProvider } from 'expo-router';
 import { Stack } from 'expo-router';
 import { GatewayProvider } from '../contexts/gateway-context';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 const CustomLightTheme = {
   ...DefaultTheme,
@@ -18,13 +19,15 @@ const CustomLightTheme = {
 
 export default function RootLayout() {
   return (
-    <GatewayProvider>
-      <ThemeProvider value={CustomLightTheme}>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="(dashboard)" />
-        </Stack>
-      </ThemeProvider>
-    </GatewayProvider>
+    <SafeAreaProvider>
+      <GatewayProvider>
+        <ThemeProvider value={CustomLightTheme}>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="index" />
+            <Stack.Screen name="(dashboard)" />
+          </Stack>
+        </ThemeProvider>
+      </GatewayProvider>
+    </SafeAreaProvider>
   );
 }
