@@ -86,8 +86,12 @@ export default function RechargeScreen() {
     void loadSalesperson();
   }, []);
 
+  const currentCampRouter = useMemo(() => {
+    return routers.find((r) => (r.camp || r.sessionName) === selectedCamp) || activeRouter;
+  }, [routers, selectedCamp, activeRouter]);
+
   const loadData = useCallback(async () => {
-    if (!activeRouter) {
+    if (!currentCampRouter) {
       setData(null);
       setLoading(false);
       return;
@@ -96,32 +100,32 @@ export default function RechargeScreen() {
     setError(null);
 
     try {
-      // Fetch available voucher counts per validity plan from database
+      // Fetch available voucher counts per validity plan for the selected camp router
       const plans = await fetchFromGateway<PlanGroup[]>(
         gatewayUrl,
         "/api/mikrotik/vouchers/plans",
-        activeRouter,
+        currentCampRouter,
         { method: "POST" }
       );
 
       setData({
         plans: plans || [],
-        currency: activeRouter?.currency ?? "AED",
+        currency: currentCampRouter?.currency ?? "AED",
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load recharge data");
     } finally {
       setLoading(false);
     }
-  }, [gatewayUrl, activeRouter]);
+  }, [gatewayUrl, currentCampRouter]);
 
   useEffect(() => {
-    if (!activeRouter) {
+    if (!currentCampRouter) {
       setData(null);
       return;
     }
     void loadData();
-  }, [loadData, activeRouter]);
+  }, [loadData, currentCampRouter]);
 
   const planGroups = useMemo(() => {
     if (!data) return [];
