@@ -31,7 +31,8 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
 
   const syncRouters = useCallback(async (url: string = gatewayUrl) => {
     try {
-      const response = await fetch(url + "/api/mikrotik/routers", {
+      const cleanUrl = url.trim().replace(/\/+$/, "");
+      const response = await fetch(cleanUrl + "/api/mikrotik/routers", {
         headers: { "Content-Type": "application/json" }
       });
       if (response.ok) {
@@ -157,7 +158,7 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
 
   const connectToGateway = async (url: string): Promise<boolean> => {
     try {
-      const cleanUrl = url.trim();
+      const cleanUrl = url.trim().replace(/\/+$/, "");
       const response = await fetch(cleanUrl + "/api/mikrotik/routers", {
         headers: { "Content-Type": "application/json" }
       });
