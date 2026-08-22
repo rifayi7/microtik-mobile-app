@@ -1,240 +1,184 @@
-import { Search, ShieldAlert, Ticket } from "lucide-react-native";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  FlatList,
   SafeAreaView,
-  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
+  ScrollView,
+  RefreshControl,
 } from "react-native";
+import { Bell, ChevronDown, Building2, Ticket } from "lucide-react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useGateway } from "../../contexts/gateway-context";
 import { fetchFromGateway } from "../../lib/api-client";
 
-interface HotspotUser {
-  id: string;
-  username: string;
-  profile: string;
-  routerId: string;
-  routerName: string;
-  status: "active" | "disabled" | "expired";
-  uptime: string;
-  dataUsed: string;
-  dataLimit: string;
-  expiresAt: string;
-  createdAt: string;
-  server?: string;
-  macAddress?: string;
-  bytesIn?: string;
-  bytesOut?: string;
-  comment?: string;
+interface PlanCount {
+  days: number;
+  available_count: number;
 }
 
 export default function CouponScreen() {
-  const { gatewayUrl, activeRouter } = useGateway();
-  const [coupons, setCoupons] = useState<HotspotUser[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { gatewayUrl, routers } = useGateway();
+  const [salesperson, setSalesperson] = useState("iqbalapricom");
+  const [campPlans, setCampPlans] = useState<Record<string, PlanCount[]>>({});
+  const [selectedCampId, setSelectedCampId] = useState<string | null>(null);
+  const [loadingCampId, setLoadingCampId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "available" | "used" | "expired">("all");
-
-  const loadCoupons = useCallback(async (isRefresh = false) => {
-    if (!activeRouter) {
-      setCoupons([]);
-      return;
-    }
-    if (!isRefresh) setLoading(true);
-    setError(null);
-
-    try {
-      const payload = await fetchFromGateway<{ users: HotspotUser[] }>(
-        gatewayUrl,
-        "/api/mikrotik/users",
-        activeRouter
-      );
-      setCoupons(payload.users);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load coupons");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [gatewayUrl, activeRouter]);
 
   useEffect(() => {
-    if (!activeRouter) {
-      setCoupons([]);
-      return;
-    }
-    void loadCoupons();
-  }, [loadCoupons, activeRouter]);
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    void loadCoupons(true);
-  };
-
-  function parseValidityDays(profile: string | undefined): number {
-    const target = String(profile || "").trim();
-    const match = target.match(/(\d+)\s*[-_]?\s*days?/i);
-    if (match) return Number(match[1]);
-    const numeric = Number(target.replace(/[^0-9]/g, ""));
-    return Number.isFinite(numeric) && numeric > 0 ? numeric : 0;
-  }
-
-  const filteredCoupons = useMemo(() => {
-    return coupons.filter((u) => {
-      const matchesSearch =
-        u.username.toLowerCase().includes(search.toLowerCase()) ||
-        u.profile.toLowerCase().includes(search.toLowerCase()) ||
-        (u.comment ?? "").toLowerCase().includes(search.toLowerCase());
-
-      // Determine coupon local status
-      const isUsed = (u.comment && u.comment.includes("Mobile:")) || u.status === "disabled";
-      const isExpired = u.status === "expired";
-      const isAvailable = u.status === "active" && !isUsed;
-
-      let matchesStatus = true;
-      if (statusFilter === "available") {
-        matchesStatus = isAvailable;
-      } else if (statusFilter === "used") {
-        matchesStatus = isUsed;
-      } else if (statusFilter === "expired") {
-        matchesStatus = isExpired;
+    async function loadSalesperson() {
+      try {
+        const name = await AsyncStorage.getItem("salesperson_name");
+        if (name) setSalesperson(name);
+      } catch (e) {
+        console.warn("Failed to load salesperson name:", e);
       }
-
-      return matchesSearch && matchesStatus;
-    });
-  }, [coupons, search, statusFilter]);
-
-  const getStatusBadge = (item: HotspotUser) => {
-    const isUsed = (item.comment && item.comment.includes("Mobile:")) || item.status === "disabled";
-    const isExpired = item.status === "expired";
-
-    if (isExpired) {
-      return { text: "Expired", bg: "#fee2e2", color: "#ef4444" };
     }
-    if (isUsed) {
-      return { text: "Used", bg: "#f1f5f9", color: "#64748b" };
+    void loadSalesperson();
+  }, []);
+
+  const loadPlansForRouter = async (routerId: string, isRefresh = false) => {
+    const targetRouter = routers.find((r) => r.id === routerId);
+    if (!targetRouter) return;
+
+    if (!isRefresh) setLoadingCampId(routerId);
+    try {
+      const plansPayload = await fetchFromGateway<PlanCount[]>(
+        gatewayUrl,
+        "/api/mikrotik/vouchers/plans",
+        targetRouter,
+        { method: "POST" }
+      );
+      setCampPlans((prev) => ({ ...prev, [routerId]: plansPayload || [] }));
+    } catch (err) {
+      console.warn("Failed to fetch plans for camp:", routerId, err);
+    } finally {
+      setLoadingCampId(null);
     }
-    return { text: "Available", bg: "#dcfce7", color: "#16a34a" };
   };
 
-  const renderItem = ({ item }: { item: HotspotUser }) => {
-    const badge = getStatusBadge(item);
-    const validityDays = parseValidityDays(item.profile);
+  const handleToggleCamp = (routerId: string) => {
+    if (selectedCampId === routerId) {
+      setSelectedCampId(null);
+    } else {
+      setSelectedCampId(routerId);
+      void loadPlansForRouter(routerId);
+    }
+  };
 
-    return (
-      <View style={styles.couponCard}>
-        {/* Card Left Part */}
-        <View style={styles.couponLeft}>
-          <View style={styles.ticketIconBg}>
-            <Ticket size={22} color="#4A60D6" />
-          </View>
-          <View style={styles.couponMainDetails}>
-            <Text style={styles.couponCode}>{item.username}</Text>
-            <Text style={styles.couponProfile}>
-              {validityDays > 0 ? `${validityDays}-Days Plan` : item.profile}
-            </Text>
-          </View>
-        </View>
-
-        {/* Card Divider Line (Dashed ticket separator look) */}
-        <View style={styles.ticketDashedLine} />
-
-        {/* Card Right Part */}
-        <View style={styles.couponRight}>
-          <View style={[styles.statusBadge, { backgroundColor: badge.bg }]}>
-            <Text style={[styles.statusText, { color: badge.color }]}>{badge.text}</Text>
-          </View>
-          {item.comment && item.comment.includes("Mobile:") ? (
-            <Text style={styles.mobileText} numberOfLines={1}>
-              {item.comment.replace("Mobile:", "")}
-            </Text>
-          ) : (
-            <Text style={styles.createdText}>{item.createdAt ? item.createdAt.split(" ")[0] : "Active"}</Text>
-          )}
-        </View>
-      </View>
-    );
+  const onRefresh = async () => {
+    setRefreshing(true);
+    if (selectedCampId) {
+      await loadPlansForRouter(selectedCampId, true);
+    }
+    setRefreshing(false);
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+      <StatusBar barStyle="dark-content" backgroundColor="#fafafc" />
 
-      {/* Toolbar / Search Header */}
-      <View style={styles.searchBarContainer}>
-        <View style={styles.searchBox}>
-          <Search size={16} color="#94a3b8" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search coupons..."
-            placeholderTextColor="#94a3b8"
-            value={search}
-            onChangeText={setSearch}
-            autoCapitalize="none"
+      {/* Header Profile Info */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <Text style={styles.welcomeTitle}>Hello {salesperson}</Text>
+          <Text style={styles.welcomeSub}>Welcome</Text>
+        </View>
+        <TouchableOpacity style={styles.bellButton}>
+          <Bell size={24} color="#0f172a" />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#4A60D6"
+            colors={["#4A60D6"]}
           />
-        </View>
-      </View>
+        }
+      >
+        {/* Title */}
+        <Text style={styles.sectionTitle}>Camps Voucher Inventory</Text>
 
-      {/* Filter Tabs */}
-      <View style={styles.filterRow}>
-        {(["all", "available", "used", "expired"] as const).map((filter) => (
-          <TouchableOpacity
-            key={filter}
-            style={[
-              styles.filterTab,
-              statusFilter === filter && styles.activeFilterTab,
-            ]}
-            onPress={() => setStatusFilter(filter)}
-          >
-            <Text
-              style={[
-                styles.filterTabText,
-                statusFilter === filter && styles.activeFilterTabText,
-              ]}
-            >
-              {filter.charAt(0).toUpperCase() + filter.slice(1)}
+        {routers.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <Building2 size={36} color="#94a3b8" style={{ marginBottom: 8 }} />
+            <Text style={styles.emptyText}>No camps available.</Text>
+            <Text style={[styles.emptyText, { fontSize: 11, color: '#94a3b8', marginTop: 2 }]}>
+              Please configure a router in the Web Admin Portal first.
             </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+          </View>
+        ) : (
+          routers.map((routerItem) => {
+            const isExpanded = selectedCampId === routerItem.id;
+            const plansList = campPlans[routerItem.id] || [];
+            const isLoadingPlans = loadingCampId === routerItem.id;
+            const campName = routerItem.camp || routerItem.sessionName;
 
-      {loading && coupons.length === 0 ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#4A60D6" />
-          <Text style={styles.loadingText}>Loading coupons...</Text>
-        </View>
-      ) : error ? (
-        <View style={styles.centered}>
-          <ShieldAlert size={36} color="#ef4444" style={{ marginBottom: 12 }} />
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={() => void loadCoupons()}>
-            <Text style={styles.retryBtnText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
-      ) : filteredCoupons.length === 0 ? (
-        <View style={styles.centered}>
-          <Ticket size={36} color="#94a3b8" style={{ marginBottom: 12 }} />
-          <Text style={styles.emptyText}>No coupons found</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={filteredCoupons}
-          keyExtractor={(item) => item.id}
-          renderItem={renderItem}
-          contentContainerStyle={styles.listContainer}
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          showsVerticalScrollIndicator={false}
-        />
-      )}
+            return (
+              <View key={routerItem.id} style={styles.campAccordionCard}>
+                {/* Accordion Header */}
+                <TouchableOpacity
+                  style={styles.campAccordionHeader}
+                  onPress={() => handleToggleCamp(routerItem.id)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.campHeaderLeft}>
+                    <View style={styles.campIconContainer}>
+                      <Building2 size={18} color="#2e4396" />
+                    </View>
+                    <Text style={styles.campNameText}>{campName}</Text>
+                  </View>
+                  <ChevronDown
+                    size={18}
+                    color="#64748b"
+                    style={isExpanded && { transform: [{ rotate: "180deg" }] }}
+                  />
+                </TouchableOpacity>
+
+                {/* Accordion Content (Voucher plan counts) */}
+                {isExpanded && (
+                  <View style={styles.campAccordionContent}>
+                    {isLoadingPlans ? (
+                      <View style={styles.centeredRow}>
+                        <ActivityIndicator size="small" color="#4A60D6" />
+                        <Text style={styles.loadingCountsText}>Loading counts...</Text>
+                      </View>
+                    ) : plansList.length === 0 ? (
+                      <View style={styles.emptyStockWrapper}>
+                        <Ticket size={20} color="#94a3b8" />
+                        <Text style={styles.noVouchersText}>No available vouchers in stock</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.accordionPlansRow}>
+                        {plansList.map((p, idx) => (
+                          <View
+                            key={idx}
+                            style={[
+                              styles.planStockBadge,
+                              p.days === 30 ? styles.badgeBlue : styles.badgeGreen,
+                            ]}
+                          >
+                            <Text style={p.days === 30 ? styles.planTextBlue : styles.planTextGreen}>
+                              {p.days}-Days: <Text style={styles.planCountText}>{p.available_count}</Text>
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                )}
+              </View>
+            );
+          })
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -242,172 +186,165 @@ export default function CouponScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#fafafc",
   },
-  searchBarContainer: {
-    padding: 12,
-    backgroundColor: "#ffffff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e2e8f0",
-  },
-  searchBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F8FAFC",
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    paddingHorizontal: 12,
-    height: 44,
-    gap: 8,
-  },
-  searchInput: {
-    flex: 1,
-    color: "#1e293b",
-    fontSize: 14,
-  },
-  filterRow: {
-    flexDirection: "row",
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e2e8f0",
-    backgroundColor: "#ffffff",
-    gap: 8,
-  },
-  filterTab: {
-    flex: 1,
-    paddingVertical: 8,
-    borderRadius: 8,
-    alignItems: "center",
-    backgroundColor: "#F8FAFC",
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-  },
-  activeFilterTab: {
-    backgroundColor: "#EEF2FF",
-    borderColor: "#bfdbfe",
-  },
-  filterTabText: {
-    color: "#64748b",
-    fontSize: 12,
-    fontWeight: "bold",
-  },
-  activeFilterTabText: {
-    color: "#4A60D6",
-  },
-  listContainer: {
-    padding: 12,
-    paddingBottom: 24,
-  },
-  centered: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-  },
-  loadingText: {
-    color: "#64748b",
-    marginTop: 10,
-    fontSize: 15,
-  },
-  errorText: {
-    color: "#ef4444",
-    textAlign: "center",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  retryBtn: {
-    backgroundColor: "#4A60D6",
-    borderRadius: 8,
-    paddingVertical: 10,
+  scrollContainer: {
     paddingHorizontal: 20,
-    marginTop: 12,
+    paddingBottom: 40,
   },
-  retryBtnText: {
-    color: "#ffffff",
-    fontWeight: "bold",
-    fontSize: 13,
-  },
-  emptyText: {
-    color: "#64748b",
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  couponCard: {
-    backgroundColor: "#ffffff",
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    borderRadius: 12,
+  header: {
     flexDirection: "row",
-    height: 76,
-    marginBottom: 10,
-    shadowColor: "#0f172a",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.02,
-    shadowRadius: 2,
-    elevation: 1,
-    overflow: "hidden",
-  },
-  couponLeft: {
-    flex: 3,
-    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 16,
-    gap: 12,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 8,
+    backgroundColor: "#fafafc",
   },
-  ticketIconBg: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    backgroundColor: "#EEF2FF",
-    justifyContent: "center",
-    alignItems: "center",
+  headerLeft: {
+    flexDirection: "column",
   },
-  couponMainDetails: {},
-  couponCode: {
+  welcomeTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#2e4396",
+  },
+  welcomeSub: {
     fontSize: 15,
-    fontWeight: "bold",
-    color: "#1e293b",
-    letterSpacing: 0.5,
-  },
-  couponProfile: {
-    fontSize: 12,
     color: "#64748b",
     marginTop: 2,
   },
-  ticketDashedLine: {
-    width: 1,
-    height: "100%",
-    borderStyle: "dashed",
-    borderWidth: 1,
-    borderColor: "#cbd5e1",
-    marginHorizontal: 2,
+  bellButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: "#ffffff",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  couponRight: {
-    flex: 2,
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "500",
+    color: "#334155",
+    marginTop: 20,
+    marginBottom: 16,
+  },
+  campAccordionCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    marginBottom: 12,
+    overflow: "hidden",
+    shadowColor: "#2e4396",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  campAccordionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 16,
+  },
+  campHeaderLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  campIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: "#eff6ff",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  campNameText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#2e4396",
+  },
+  campAccordionContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#f1f5f9",
+    backgroundColor: "#fcfdfe",
+  },
+  centeredRow: {
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 8,
-    backgroundColor: "#FAFBFD",
+    paddingVertical: 12,
+    gap: 8,
   },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+  loadingCountsText: {
+    fontSize: 13,
+    color: "#64748b",
+  },
+  emptyStockWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    gap: 8,
+  },
+  noVouchersText: {
+    fontSize: 13,
+    color: "#64748b",
+    fontWeight: "500",
+  },
+  accordionPlansRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 14,
+  },
+  planStockBadge: {
+    flex: 1,
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+  },
+  badgeBlue: {
+    backgroundColor: "#eff6ff",
+    borderColor: "#bfdbfe",
+  },
+  badgeGreen: {
+    backgroundColor: "#ecfdf5",
+    borderColor: "#a7f3d0",
+  },
+  planTextBlue: {
+    color: "#1e3a8a",
+    fontWeight: "700",
+    fontSize: 13,
+  },
+  planTextGreen: {
+    color: "#064e3b",
+    fontWeight: "700",
+    fontSize: 13,
+  },
+  planCountText: {
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  emptyCard: {
+    backgroundColor: "#ffffff",
     borderRadius: 12,
-    marginBottom: 6,
+    padding: 24,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
   },
-  statusText: {
-    fontSize: 10,
-    fontWeight: "bold",
-  },
-  mobileText: {
-    fontSize: 11,
-    color: "#475569",
-    fontWeight: "600",
-  },
-  createdText: {
-    fontSize: 11,
-    color: "#94a3b8",
+  emptyText: {
+    color: "#64748b",
+    fontSize: 13,
+    fontWeight: "500",
   },
 });

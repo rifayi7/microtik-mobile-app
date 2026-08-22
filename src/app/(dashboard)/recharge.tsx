@@ -25,43 +25,18 @@ import { useGateway } from "../../contexts/gateway-context";
 import { fetchFromGateway } from "../../lib/api-client";
 import { formatCurrency } from "../../lib/format";
 
-interface VoucherCode {
-  id: string;
-  code: string;
-  validity: number; // in days
-  profile: string;
-  status: "available" | "used" | "expired";
-  createdAt: string;
-  usedAt?: string;
-}
-
-interface HotspotUser {
-  id: string;
-  username: string;
-  profile: string;
-  status: "active" | "disabled" | "expired";
-  createdAt: string;
-  comment?: string;
+interface PlanGroup {
+  days: number;
+  available_count: number;
 }
 
 interface RechargeData {
-  vouchers: VoucherCode[];
+  plans: PlanGroup[];
   currency: string;
 }
 
-function parseValidityDays(value: string | undefined): number {
-  const target = String(value || "").trim();
-  if (!target) return 0;
-
-  const match = target.match(/(\d+)\D*days?/i);
-  if (match) return Number(match[1]);
-
-  const numeric = Number(target.replace(/[^0-9]/g, ""));
-  return Number.isFinite(numeric) && numeric > 0 ? numeric : 0;
-}
-
 export default function RechargeScreen() {
-  const { gatewayUrl, activeRouter, routers } = useGateway();
+  const { gatewayUrl, activeRouter, routers, connectRouter } = useGateway();
   const [data, setData] = useState<RechargeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -70,7 +45,6 @@ export default function RechargeScreen() {
   // Form states
   const [mobileNumber, setMobileNumber] = useState("");
   const [selectedPlan, setSelectedPlan] = useState(0);
-  const [selectedCode, setSelectedCode] = useState<VoucherCode | null>(null);
   const [processingCode, setProcessingCode] = useState<string | null>(null);
   const [rechargeMode, setRechargeMode] = useState<"select" | "manual">("select");
   const [manualVoucherCode, setManualVoucherCode] = useState("");
@@ -89,26 +63,18 @@ export default function RechargeScreen() {
   } | null>(null);
 
   const camps = useMemo(() => {
-    // Get unique camp names from routers configured in Next.js portal
-    const list = routers
-      .map((r) => r.camp)
-      .filter((c): c is string => !!c);
-    
-    const unique = Array.from(new Set(list));
-    if (unique.length === 0) {
-      const defaultCamp = activeRouter?.camp || "APM-DXB-camp-1 - Apricom DXB";
-      return [defaultCamp, "APM-DXB-camp-2 - Apricom DXB 2", "APM-SHJ-camp-1 - Sharjah Main"];
-    }
-    return unique;
-  }, [routers, activeRouter]);
+    return routers.map((r) => r.camp || r.sessionName);
+  }, [routers]);
 
   const [selectedCamp, setSelectedCamp] = useState("");
 
   useEffect(() => {
-    if (camps.length > 0) {
+    if (activeRouter) {
+      setSelectedCamp(activeRouter.camp || activeRouter.sessionName);
+    } else if (camps.length > 0) {
       setSelectedCamp(camps[0]);
     }
-  }, [camps]);
+  }, [activeRouter, camps]);
 
   useEffect(() => {
     async function loadSalesperson() {
@@ -121,8 +87,7 @@ export default function RechargeScreen() {
   }, []);
 
   const loadData = useCallback(async () => {
-    const targetRouter = routers.find((r) => r.camp === selectedCamp) || activeRouter;
-    if (!targetRouter) {
+    if (!activeRouter) {
       setData(null);
       return;
     }
@@ -130,59 +95,36 @@ export default function RechargeScreen() {
     setError(null);
 
     try {
-      const payload = await fetchFromGateway<{ users: HotspotUser[] }>(
+      // Fetch available voucher counts per validity plan from database
+      const plans = await fetchFromGateway<PlanGroup[]>(
         gatewayUrl,
-        "/api/mikrotik/users",
-        targetRouter
+        "/api/mikrotik/vouchers/plans",
+        activeRouter,
+        { method: "POST" }
       );
 
-      const vouchers = payload.users
-        .map((user) => ({
-          id: user.id,
-          code: user.username,
-          profile: user.profile,
-          validity: parseValidityDays(user.profile),
-          status:
-            (user.comment && user.comment.includes("Mobile:")) || user.status !== "active"
-              ? ("used" as const)
-              : ("available" as const),
-          createdAt: user.createdAt,
-        }))
-        .filter((voucher) => voucher.validity > 0 && voucher.status === "available");
-
       setData({
-        vouchers,
-        currency: targetRouter.currency ?? "AED",
+        plans: plans || [],
+        currency: activeRouter?.currency ?? "AED",
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load recharge data");
     } finally {
       setLoading(false);
     }
-  }, [gatewayUrl, activeRouter, routers, selectedCamp]);
+  }, [gatewayUrl, activeRouter]);
 
   useEffect(() => {
+    if (!activeRouter) {
+      setData(null);
+      return;
+    }
     void loadData();
-  }, [loadData]);
+  }, [loadData, activeRouter]);
 
-  // Get available codes for selected plan
   const planGroups = useMemo(() => {
     if (!data) return [];
-
-    const groups = data.vouchers
-      .filter((voucher) => voucher.status === "available" && voucher.validity > 0)
-      .reduce<Record<number, VoucherCode[]>>((acc, voucher) => {
-        acc[voucher.validity] = acc[voucher.validity] || [];
-        acc[voucher.validity].push(voucher);
-        return acc;
-      }, {});
-
-    return Object.entries(groups)
-      .map(([validity, vouchers]) => ({
-        days: Number(validity),
-        vouchers,
-      }))
-      .sort((a, b) => a.days - b.days);
+    return [...data.plans].sort((a, b) => a.days - b.days);
   }, [data]);
 
   useEffect(() => {
@@ -191,13 +133,28 @@ export default function RechargeScreen() {
     }
   }, [planGroups, selectedPlan]);
 
-  useEffect(() => {
-    const group = planGroups.find((g) => g.days === selectedPlan);
-    setSelectedCode(group?.vouchers[0] ?? null);
-  }, [planGroups, selectedPlan]);
-
   const handleSelectPlan = (days: number) => {
     setSelectedPlan(days);
+  };
+
+  const handleSelectCamp = async (campName: string) => {
+    setSelectedCamp(campName);
+    setShowCampDropdown(false);
+    
+    const targetRouter = routers.find((r) => (r.camp || r.sessionName) === campName);
+    if (targetRouter && targetRouter.id !== activeRouter?.id) {
+      try {
+        setLoading(true);
+        const success = await connectRouter(targetRouter.id);
+        if (!success) {
+          Alert.alert("Error", `Failed to switch to camp router: ${campName}`);
+        }
+      } catch (err) {
+        Alert.alert("Error", err instanceof Error ? err.message : "Failed to switch camp");
+      } finally {
+        setLoading(false);
+      }
+    }
   };
 
   const handleConfirmRecharge = async () => {
@@ -212,7 +169,7 @@ export default function RechargeScreen() {
         return;
       }
     } else {
-      if (!selectedCode) {
+      if (!selectedPlan) {
         Alert.alert("Error", "Please select a plan");
         return;
       }
@@ -223,10 +180,9 @@ export default function RechargeScreen() {
       return;
     }
 
-    const targetRouter = routers.find((r) => r.camp === selectedCamp) || activeRouter;
-    if (!targetRouter) return;
+    if (!activeRouter) return;
 
-    setProcessingCode(rechargeMode === "manual" ? "manual" : selectedCode!.id);
+    setProcessingCode(rechargeMode === "manual" ? "manual" : String(selectedPlan));
     try {
       const result = await fetchFromGateway<{ 
         success: boolean; 
@@ -236,7 +192,7 @@ export default function RechargeScreen() {
       }>(
         gatewayUrl,
         "/api/mikrotik/vouchers/redeem",
-        targetRouter,
+        activeRouter,
         {
           method: "POST",
           body: rechargeMode === "manual"
@@ -246,7 +202,7 @@ export default function RechargeScreen() {
                 salesperson,
               }
             : {
-                voucherId: selectedCode!.id,
+                validity_days: selectedPlan,
                 mobileNumber: mobileNumber.trim(),
                 salesperson,
               },
@@ -255,9 +211,9 @@ export default function RechargeScreen() {
 
       if (result.success) {
         const transaction = {
-          code: result.code || (rechargeMode === "manual" ? manualVoucherCode.trim() : selectedCode!.code),
+          code: result.code || "",
           mobile: mobileNumber,
-          validity: result.validity || (rechargeMode === "manual" ? 0 : selectedCode!.validity),
+          validity: result.validity || selectedPlan,
           timestamp: new Date().toLocaleString(),
           camp: selectedCamp,
           paymentType: paymentType,
@@ -268,7 +224,6 @@ export default function RechargeScreen() {
         // Reset form
         setMobileNumber("");
         setManualVoucherCode("");
-        setSelectedCode(null);
 
         // Reload data
         await loadData();
@@ -306,6 +261,21 @@ export default function RechargeScreen() {
           <TouchableOpacity style={styles.retryButton} onPress={loadData}>
             <Text style={styles.retryButtonText}>Try Again</Text>
           </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!activeRouter) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+        <View style={styles.centered}>
+          <Building2 size={48} color="#94a3b8" style={{ marginBottom: 12 }} />
+          <Text style={styles.errorText}>No active camp connected.</Text>
+          <Text style={[styles.errorText, { fontSize: 12, color: '#64748b', marginTop: 4, textAlign: 'center', paddingHorizontal: 32 }]}>
+            Please configure a router in the Web Admin Portal first.
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -388,10 +358,7 @@ export default function RechargeScreen() {
                     <TouchableOpacity 
                       key={index} 
                       style={styles.dropdownOptionItem}
-                      onPress={() => {
-                        setSelectedCamp(camp);
-                        setShowCampDropdown(false);
-                      }}
+                      onPress={() => void handleSelectCamp(camp)}
                     >
                       <Text style={styles.dropdownOptionText}>{camp}</Text>
                     </TouchableOpacity>
@@ -458,7 +425,7 @@ export default function RechargeScreen() {
                         setShowValidityDropdown(false);
                       }}
                     >
-                      <Text style={styles.dropdownOptionText}>{group.days} Days ({group.vouchers.length} available)</Text>
+                      <Text style={styles.dropdownOptionText}>{group.days} Days ({group.available_count} available)</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -517,7 +484,7 @@ export default function RechargeScreen() {
                   Alert.alert("Error", "Please enter manual voucher code");
                   return;
                 }
-                if (rechargeMode === "select" && !selectedCode) {
+                if (rechargeMode === "select" && !selectedPlan) {
                   Alert.alert("Error", "No available vouchers for selected plan");
                   return;
                 }

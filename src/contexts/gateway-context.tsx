@@ -9,12 +9,13 @@ interface GatewayContextType {
   isConnected: boolean;
   loading: boolean;
   setGatewayUrl: (url: string) => Promise<void>;
+  syncRouters: () => Promise<void>;
   addRouter: (router: Omit<MikrotikRouterConfig, "id">) => Promise<void>;
   updateRouter: (router: MikrotikRouterConfig) => Promise<void>;
   deleteRouter: (id: string) => Promise<void>;
   connectRouter: (id: string) => Promise<boolean>;
   disconnectRouter: () => Promise<void>;
-  connectToGateway: (url: string) => Promise<boolean>;
+  connectToGateway: (url: string) => Promise<{ success: boolean; routerCount: number }>;
 }
 
 const GatewayContext = createContext<GatewayContextType | undefined>(undefined);
@@ -29,42 +30,47 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
   const [activeRouter, setActiveRouterState] = useState<MikrotikRouterConfig | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
-  const syncRouters = useCallback(async (url: string = gatewayUrl) => {
+  const syncRoutersFromServer = useCallback(async (url: string, activeId: string | null) => {
     try {
-      const cleanUrl = url.trim().replace(/\/+$/, "");
-      const response = await fetch(cleanUrl + "/api/mikrotik/routers", {
-        headers: { "Content-Type": "application/json" }
-      });
-      if (response.ok) {
-        const payload = await response.json();
-        if (payload.routers) {
-          setRoutersState(payload.routers);
-          await AsyncStorage.setItem(STORAGE_ROUTERS, JSON.stringify(payload.routers));
-          
-          // Re-load active router if possible
-          const savedActiveId = await AsyncStorage.getItem(STORAGE_ACTIVE_ROUTER_ID);
-          if (savedActiveId) {
-            const active = payload.routers.find((r: MikrotikRouterConfig) => r.id === savedActiveId);
-            if (active) {
-              setActiveRouterState(active);
-            }
+      const normalizedUrl = url.replace(/\/+$/, "");
+      const result = await fetchFromGateway<{ routers: MikrotikRouterConfig[] }>(
+        normalizedUrl,
+        "/api/mikrotik/routers",
+        null,
+        { method: "GET" }
+      );
+
+      if (result && result.routers) {
+        setRoutersState(result.routers);
+        await AsyncStorage.setItem(STORAGE_ROUTERS, JSON.stringify(result.routers));
+
+        // Sync active router details if it changed
+        const currentActiveId = activeId;
+        if (currentActiveId) {
+          const updatedActive = result.routers.find((r) => r.id === currentActiveId);
+          if (updatedActive) {
+            setActiveRouterState(updatedActive);
           }
         }
       }
     } catch (e) {
-      console.error("Failed to sync routers from server", e);
+      console.warn("Could not sync routers from central gateway server. Using local offline storage.", e);
     }
-  }, [gatewayUrl]);
+  }, []);
+
+  const syncRouters = async () => {
+    await syncRoutersFromServer(gatewayUrl, activeRouter?.id || null);
+  };
 
   // Load configuration from AsyncStorage on mount
   useEffect(() => {
     async function loadStorage() {
       try {
         const savedGateway = await AsyncStorage.getItem(STORAGE_GATEWAY_URL);
+        let normalizedUrl = "http://localhost:3000";
         if (savedGateway) {
-          setGatewayState(savedGateway);
-          // Sync routers in background
-          void syncRouters(savedGateway);
+          normalizedUrl = savedGateway.replace(/\/+$/, "");
+          setGatewayState(normalizedUrl);
         }
 
         const savedRouters = await AsyncStorage.getItem(STORAGE_ROUTERS);
@@ -81,6 +87,11 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
             setActiveRouterState(active);
           }
         }
+
+        // Proactively sync routers from server on boot
+        if (normalizedUrl) {
+          void syncRoutersFromServer(normalizedUrl, savedActiveId || null);
+        }
       } catch (e) {
         console.error("Failed to load gateway config", e);
       } finally {
@@ -88,12 +99,13 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
       }
     }
     void loadStorage();
-  }, [syncRouters]);
+  }, [syncRoutersFromServer]);
 
   const setGatewayUrl = async (url: string) => {
-    setGatewayState(url);
-    await AsyncStorage.setItem(STORAGE_GATEWAY_URL, url);
-    void syncRouters(url);
+    const normalized = url.replace(/\/+$/, "");
+    setGatewayState(normalized);
+    await AsyncStorage.setItem(STORAGE_GATEWAY_URL, normalized);
+    await syncRoutersFromServer(normalized, activeRouter?.id || null);
   };
 
   const addRouter = async (router: Omit<MikrotikRouterConfig, "id">) => {
@@ -132,7 +144,6 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
     if (!target) return false;
 
     try {
-      // Test router connection via the connect endpoint in Next.js
       const result = await fetchFromGateway<{ success: boolean; error?: string }>(
         gatewayUrl,
         "/api/mikrotik/connect",
@@ -156,35 +167,54 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
     await AsyncStorage.removeItem(STORAGE_ACTIVE_ROUTER_ID);
   };
 
-  const connectToGateway = async (url: string): Promise<boolean> => {
+  const connectToGateway = async (url: string): Promise<{ success: boolean; routerCount: number }> => {
     try {
       const cleanUrl = url.trim().replace(/\/+$/, "");
+
+      // 1. Verify backend server and database health first
+      const healthResponse = await fetch(cleanUrl + "/api/mikrotik/health", {
+        headers: { "Content-Type": "application/json" }
+      });
+
+      if (!healthResponse.ok) {
+        throw new Error("Backend server is not running or database connection failed");
+      }
+
+      const healthPayload = await healthResponse.json();
+      if (!healthPayload.success) {
+        throw new Error(healthPayload.error ?? "Database connectivity issue on backend");
+      }
+
+      // 2. Fetch the routers list from database
       const response = await fetch(cleanUrl + "/api/mikrotik/routers", {
         headers: { "Content-Type": "application/json" }
       });
       if (!response.ok) {
-        throw new Error("Backend server returned status " + response.status);
+        throw new Error("Failed to load routers list from server");
       }
       
       const payload = await response.json();
-      if (!payload.routers || payload.routers.length === 0) {
-        throw new Error("No routers configured on the backend server.");
-      }
+      const routersList = payload.routers || [];
 
       // Save gateway URL
       setGatewayState(cleanUrl);
       await AsyncStorage.setItem(STORAGE_GATEWAY_URL, cleanUrl);
 
       // Save routers list
-      setRoutersState(payload.routers);
-      await AsyncStorage.setItem(STORAGE_ROUTERS, JSON.stringify(payload.routers));
+      setRoutersState(routersList);
+      await AsyncStorage.setItem(STORAGE_ROUTERS, JSON.stringify(routersList));
 
-      // Automatically set the first router as active
-      const defaultRouter = payload.routers[0];
-      setActiveRouterState(defaultRouter);
-      await AsyncStorage.setItem(STORAGE_ACTIVE_ROUTER_ID, defaultRouter.id);
+      // Automatically set the first router as active if available
+      if (routersList.length > 0) {
+        const defaultRouter = routersList[0];
+        setActiveRouterState(defaultRouter);
+        await AsyncStorage.setItem(STORAGE_ACTIVE_ROUTER_ID, defaultRouter.id);
+      } else {
+        setActiveRouterState(null);
+        await AsyncStorage.removeItem(STORAGE_ACTIVE_ROUTER_ID);
+      }
 
-      return true;
+      return { success: true, routerCount: routersList.length };
     } catch (e) {
       console.error("Failed to connect to gateway", e);
       throw e;
@@ -197,9 +227,10 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
         gatewayUrl,
         routers,
         activeRouter,
-        isConnected: activeRouter !== null,
+        isConnected: !!gatewayUrl,
         loading,
         setGatewayUrl,
+        syncRouters,
         addRouter,
         updateRouter,
         deleteRouter,

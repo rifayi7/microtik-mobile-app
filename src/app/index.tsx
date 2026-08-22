@@ -99,16 +99,18 @@ export default function GatewayScreen() {
     }
   };
 
+  const [isGatewaySessionConnected, setIsGatewaySessionConnected] = useState(false);
+
   useEffect(() => {
     setInputUrl(gatewayUrl);
   }, [gatewayUrl]);
 
-  // Navigate to dashboard whenever connected (and not still loading).
+  // Navigate to dashboard only when they explicitly connect in this session
   useEffect(() => {
-    if (!loading && isConnected) {
+    if (isGatewaySessionConnected) {
       router.replace("/(dashboard)");
     }
-  }, [isConnected, loading]);
+  }, [isGatewaySessionConnected]);
 
   const handleConnectGateway = async () => {
     if (!inputUrl.trim()) {
@@ -118,9 +120,17 @@ export default function GatewayScreen() {
     
     setIsConnectingGateway(true);
     try {
-      const success = await connectToGateway(inputUrl.trim());
-      if (success) {
-        Alert.alert("Success", "Connected to Gateway server successfully!");
+      const result = await connectToGateway(inputUrl.trim());
+      if (result.success) {
+        setIsGatewaySessionConnected(true);
+        if (result.routerCount === 0) {
+          Alert.alert(
+            "Connected",
+            "Connected successfully, but no camps are configured yet. Please configure your routers in the Web Admin Portal."
+          );
+        } else {
+          Alert.alert("Success", "Connected to Gateway server successfully!");
+        }
       }
     } catch (err) {
       Alert.alert(

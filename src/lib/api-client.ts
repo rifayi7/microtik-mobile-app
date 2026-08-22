@@ -32,33 +32,22 @@ export async function fetchFromGateway<T>(
   };
 
   if (routerConfig) {
-    requestBody.router = {
-      id: routerConfig.id,
-      sessionName: routerConfig.sessionName,
-      host: routerConfig.host,
-      port: Number(routerConfig.port),
-      username: routerConfig.username,
-      password: routerConfig.password ?? "",
-      useTls: Boolean(routerConfig.useTls),
-      hotspotName: routerConfig.hotspotName,
-      dnsName: routerConfig.dnsName,
-      currency: routerConfig.currency ?? "AED",
-      camp: routerConfig.camp,
-      sessionTimeout: routerConfig.sessionTimeout,
-      phone: routerConfig.phone,
-      liveReport: routerConfig.liveReport !== undefined ? Boolean(routerConfig.liveReport) : true,
-    };
     requestBody.routerId = routerConfig.id;
   }
 
   try {
-    const response = await fetch(fullUrl, {
+    const fetchOptions: RequestInit = {
       method: options.method ?? "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(requestBody),
-    });
+    };
+
+    if (fetchOptions.method !== "GET" && fetchOptions.method !== "HEAD") {
+      fetchOptions.body = JSON.stringify(requestBody);
+    }
+
+    const response = await fetch(fullUrl, fetchOptions);
 
     const text = await response.text();
     let payload: any = {};
