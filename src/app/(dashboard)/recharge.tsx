@@ -89,6 +89,7 @@ export default function RechargeScreen() {
   const loadData = useCallback(async () => {
     if (!activeRouter) {
       setData(null);
+      setLoading(false);
       return;
     }
     setLoading(true);
