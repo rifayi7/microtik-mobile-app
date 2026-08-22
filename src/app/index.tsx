@@ -33,29 +33,13 @@ export default function GatewayScreen() {
   const router = useRouter();
   const {
     gatewayUrl,
-    routers,
-    activeRouter,
     isConnected,
     loading,
-    setGatewayUrl,
-    addRouter,
-    updateRouter,
-    deleteRouter,
-    connectRouter,
-    disconnectRouter,
+    connectToGateway,
   } = useGateway();
 
   const [inputUrl, setInputUrl] = useState(gatewayUrl);
-  const [sessionName, setSessionName] = useState("");
-  const [host, setHost] = useState("");
-  const [port, setPort] = useState("8728");
-  const [username, setUsername] = useState("admin");
-  const [password, setPassword] = useState("");
-  const [useTls, setUseTls] = useState(false);
-  const [currency, setCurrency] = useState("AED");
-  const [connectingId, setConnectingId] = useState<string | null>(null);
-  const [isAdding, setIsAdding] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [isConnectingGateway, setIsConnectingGateway] = useState(false);
 
   // Operator Login State
   const [currentUser, setCurrentUser] = useState<string | null>(null);
@@ -126,111 +110,25 @@ export default function GatewayScreen() {
     }
   }, [isConnected, loading]);
 
-  const handleSaveGateway = async () => {
+  const handleConnectGateway = async () => {
     if (!inputUrl.trim()) {
       Alert.alert("Error", "Gateway URL cannot be empty");
       return;
     }
+    
+    setIsConnectingGateway(true);
     try {
-      await setGatewayUrl(inputUrl.trim());
-      Alert.alert("Success", "Gateway API URL updated successfully");
-    } catch {
-      Alert.alert("Error", "Failed to save gateway URL");
-    }
-  };
-
-  const handleAddRouter = async () => {
-    if (!sessionName.trim() || !host.trim() || !port.trim() || !username.trim()) {
-      Alert.alert("Error", "Please fill in all required fields (Name, IP, Port, Username)");
-      return;
-    }
-
-    try {
-      if (editingId) {
-        // Update existing router
-        await updateRouter({
-          id: editingId,
-          sessionName: sessionName.trim(),
-          host: host.trim(),
-          port: Number(port.trim()),
-          username: username.trim(),
-          password: password,
-          useTls,
-          currency: currency.trim() || "AED",
-        });
-        Alert.alert("Success", "Router config updated");
-      } else {
-        // Add new router
-        await addRouter({
-          sessionName: sessionName.trim(),
-          host: host.trim(),
-          port: Number(port.trim()),
-          username: username.trim(),
-          password: password,
-          useTls,
-          currency: currency.trim() || "AED",
-        });
-        Alert.alert("Success", "Router config added");
-      }
-
-      // Reset Form
-      setSessionName("");
-      setHost("");
-      setPort("8728");
-      setUsername("admin");
-      setPassword("");
-      setUseTls(false);
-      setCurrency("AED");
-      setIsAdding(false);
-      setEditingId(null);
-    } catch (err) {
-      Alert.alert("Error", editingId ? "Failed to update router" : "Failed to add router");
-    }
-  };
-
-  const handleEditRouter = (routerConfig: MikrotikRouterConfig) => {
-    setEditingId(routerConfig.id);
-    setSessionName(routerConfig.sessionName);
-    setHost(routerConfig.host);
-    setPort(String(routerConfig.port));
-    setUsername(routerConfig.username);
-    setPassword(routerConfig.password || "");
-    setUseTls(routerConfig.useTls);
-    setCurrency(routerConfig.currency || "AED");
-    setIsAdding(true);
-  };
-
-  const handleCancelEdit = () => {
-    setEditingId(null);
-    setSessionName("");
-    setHost("");
-    setPort("8728");
-    setUsername("admin");
-    setPassword("");
-    setUseTls(false);
-    setCurrency("AED");
-    setIsAdding(false);
-  };
-
-  const handleConnect = async (id: string) => {
-    setConnectingId(id);
-    try {
-      const success = await connectRouter(id);
+      const success = await connectToGateway(inputUrl.trim());
       if (success) {
-        // Add a small delay to ensure state updates propagate
-        setTimeout(() => {
-          router.replace("/(dashboard)");
-        }, 300);
-      } else {
-        Alert.alert("Connection Failed", "Unable to establish connection. Please try again.");
+        Alert.alert("Success", "Connected to Gateway server successfully!");
       }
     } catch (err) {
       Alert.alert(
         "Connection Failed",
-        err instanceof Error ? err.message : "Could not connect to router. Check credentials and gateway status."
+        err instanceof Error ? err.message : "Failed to connect to Gateway server. Please verify the URL."
       );
     } finally {
-      setConnectingId(null);
+      setIsConnectingGateway(false);
     }
   };
 
@@ -343,7 +241,7 @@ export default function GatewayScreen() {
         <View style={styles.cardLight}>
           <Text style={styles.cardTitleLight}>Next.js Gateway Server</Text>
           <Text style={styles.cardDescLight}>
-            Specify the base URL of your running Next.js application proxy.
+            Enter the URL of your Next.js server and click Connect.
           </Text>
           <View style={styles.inputRowLight}>
             <TextInput
@@ -355,72 +253,19 @@ export default function GatewayScreen() {
               autoCapitalize="none"
               autoCorrect={false}
             />
-            <TouchableOpacity style={styles.saveButtonLight} onPress={handleSaveGateway}>
-              <Text style={styles.saveButtonTextLight}>Save</Text>
+            <TouchableOpacity 
+              style={[styles.saveButtonLight, isConnectingGateway && { opacity: 0.7 }]} 
+              onPress={handleConnectGateway}
+              disabled={isConnectingGateway}
+            >
+              {isConnectingGateway ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.saveButtonTextLight}>Connect</Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>
-
-        {/* Router List */}
-        <View style={styles.sectionHeaderLight}>
-          <Text style={styles.sectionTitleLight}>Your MikroTik Routers</Text>
-        </View>
-
-        {routers.length === 0 ? (
-          <View style={styles.emptyCardLight}>
-            <Wifi size={36} color="#94a3b8" style={styles.emptyIconLight} />
-            <Text style={styles.emptyTitleLight}>No routers available</Text>
-            <Text style={styles.emptyDescLight}>
-              Configure your MikroTik routers in the web admin portal to connect.
-            </Text>
-          </View>
-        ) : (
-          routers.map((item) => {
-            const isConnecting = connectingId === item.id;
-            const isActive = activeRouter?.id === item.id;
-
-            return (
-              <View key={item.id} style={styles.routerCardLight}>
-                <View style={styles.routerInfoLight}>
-                  <View style={styles.routerMainInfoLight}>
-                    <Text style={styles.routerNameLight}>{item.sessionName}</Text>
-                    {isActive && (
-                      <View style={styles.connectedBadgeLight}>
-                        <Check size={10} color="#16a34a" />
-                        <Text style={styles.connectedBadgeTextLight}>Connected</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={styles.routerHostLight}>
-                    {item.host}:{item.port} • {item.username}
-                  </Text>
-                </View>
-
-                <View style={styles.routerActionsLight}>
-                  <TouchableOpacity
-                    style={[
-                      styles.connectBtnLight,
-                      isActive && styles.activeConnectBtnLight,
-                    ]}
-                    onPress={() => void handleConnect(item.id)}
-                    disabled={isConnecting}
-                  >
-                    {isConnecting ? (
-                      <ActivityIndicator size="small" color="#fff" />
-                    ) : (
-                      <>
-                        <Text style={styles.connectBtnTextLight}>
-                          {isActive ? "Enter" : "Connect"}
-                        </Text>
-                        <ChevronRight size={14} color="#fff" />
-                      </>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              </View>
-            );
-          })
-        )}
       </ScrollView>
     </SafeAreaView>
   );

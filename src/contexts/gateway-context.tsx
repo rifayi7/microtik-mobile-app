@@ -14,6 +14,7 @@ interface GatewayContextType {
   deleteRouter: (id: string) => Promise<void>;
   connectRouter: (id: string) => Promise<boolean>;
   disconnectRouter: () => Promise<void>;
+  connectToGateway: (url: string) => Promise<boolean>;
 }
 
 const GatewayContext = createContext<GatewayContextType | undefined>(undefined);
@@ -154,6 +155,41 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
     await AsyncStorage.removeItem(STORAGE_ACTIVE_ROUTER_ID);
   };
 
+  const connectToGateway = async (url: string): Promise<boolean> => {
+    try {
+      const cleanUrl = url.trim();
+      const response = await fetch(cleanUrl + "/api/mikrotik/routers", {
+        headers: { "Content-Type": "application/json" }
+      });
+      if (!response.ok) {
+        throw new Error("Backend server returned status " + response.status);
+      }
+      
+      const payload = await response.json();
+      if (!payload.routers || payload.routers.length === 0) {
+        throw new Error("No routers configured on the backend server.");
+      }
+
+      // Save gateway URL
+      setGatewayState(cleanUrl);
+      await AsyncStorage.setItem(STORAGE_GATEWAY_URL, cleanUrl);
+
+      // Save routers list
+      setRoutersState(payload.routers);
+      await AsyncStorage.setItem(STORAGE_ROUTERS, JSON.stringify(payload.routers));
+
+      // Automatically set the first router as active
+      const defaultRouter = payload.routers[0];
+      setActiveRouterState(defaultRouter);
+      await AsyncStorage.setItem(STORAGE_ACTIVE_ROUTER_ID, defaultRouter.id);
+
+      return true;
+    } catch (e) {
+      console.error("Failed to connect to gateway", e);
+      throw e;
+    }
+  };
+
   return (
     <GatewayContext.Provider
       value={{
@@ -168,6 +204,7 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
         deleteRouter,
         connectRouter,
         disconnectRouter,
+        connectToGateway,
       }}
     >
       {children}
