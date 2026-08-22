@@ -176,12 +176,9 @@ export default function RechargeScreen() {
       }
     }
 
-    if (mobileNumber.trim().length < 8 || mobileNumber.trim().length > 12) {
-      Alert.alert("Error", "Mobile number should be 8-12 digits");
-      return;
-    }
-
-    if (!activeRouter) return;
+    // Ensure we use the router matching the selected camp
+    const targetRouter = routers.find((r) => (r.camp || r.sessionName) === selectedCamp) || activeRouter;
+    if (!targetRouter) return;
 
     setProcessingCode(rechargeMode === "manual" ? "manual" : String(selectedPlan));
     try {
@@ -193,7 +190,7 @@ export default function RechargeScreen() {
       }>(
         gatewayUrl,
         "/api/mikrotik/vouchers/redeem",
-        activeRouter,
+        targetRouter,
         {
           method: "POST",
           body: rechargeMode === "manual"
