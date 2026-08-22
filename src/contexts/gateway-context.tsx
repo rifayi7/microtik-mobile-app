@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { fetchFromGateway, type MikrotikRouterConfig } from "../lib/api-client";
 
@@ -28,6 +28,32 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
   const [activeRouter, setActiveRouterState] = useState<MikrotikRouterConfig | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
+  const syncRouters = useCallback(async (url: string = gatewayUrl) => {
+    try {
+      const response = await fetch(url + "/api/mikrotik/routers", {
+        headers: { "Content-Type": "application/json" }
+      });
+      if (response.ok) {
+        const payload = await response.json();
+        if (payload.routers) {
+          setRoutersState(payload.routers);
+          await AsyncStorage.setItem(STORAGE_ROUTERS, JSON.stringify(payload.routers));
+          
+          // Re-load active router if possible
+          const savedActiveId = await AsyncStorage.getItem(STORAGE_ACTIVE_ROUTER_ID);
+          if (savedActiveId) {
+            const active = payload.routers.find((r: MikrotikRouterConfig) => r.id === savedActiveId);
+            if (active) {
+              setActiveRouterState(active);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Failed to sync routers from server", e);
+    }
+  }, [gatewayUrl]);
+
   // Load configuration from AsyncStorage on mount
   useEffect(() => {
     async function loadStorage() {
@@ -35,6 +61,8 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
         const savedGateway = await AsyncStorage.getItem(STORAGE_GATEWAY_URL);
         if (savedGateway) {
           setGatewayState(savedGateway);
+          // Sync routers in background
+          void syncRouters(savedGateway);
         }
 
         const savedRouters = await AsyncStorage.getItem(STORAGE_ROUTERS);
@@ -58,11 +86,12 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
       }
     }
     void loadStorage();
-  }, []);
+  }, [syncRouters]);
 
   const setGatewayUrl = async (url: string) => {
     setGatewayState(url);
     await AsyncStorage.setItem(STORAGE_GATEWAY_URL, url);
+    void syncRouters(url);
   };
 
   const addRouter = async (router: Omit<MikrotikRouterConfig, "id">) => {

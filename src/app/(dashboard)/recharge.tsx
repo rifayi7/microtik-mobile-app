@@ -61,7 +61,7 @@ function parseValidityDays(value: string | undefined): number {
 }
 
 export default function RechargeScreen() {
-  const { gatewayUrl, activeRouter } = useGateway();
+  const { gatewayUrl, activeRouter, routers } = useGateway();
   const [data, setData] = useState<RechargeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -89,9 +89,18 @@ export default function RechargeScreen() {
   } | null>(null);
 
   const camps = useMemo(() => {
-    const defaultCamp = activeRouter?.camp || "APM-DXB-camp-1 - Apricom DXB";
-    return [defaultCamp, "APM-DXB-camp-2 - Apricom DXB 2", "APM-SHJ-camp-1 - Sharjah Main"];
-  }, [activeRouter]);
+    // Get unique camp names from routers configured in Next.js portal
+    const list = routers
+      .map((r) => r.camp)
+      .filter((c): c is string => !!c);
+    
+    const unique = Array.from(new Set(list));
+    if (unique.length === 0) {
+      const defaultCamp = activeRouter?.camp || "APM-DXB-camp-1 - Apricom DXB";
+      return [defaultCamp, "APM-DXB-camp-2 - Apricom DXB 2", "APM-SHJ-camp-1 - Sharjah Main"];
+    }
+    return unique;
+  }, [routers, activeRouter]);
 
   const [selectedCamp, setSelectedCamp] = useState("");
 
@@ -112,7 +121,8 @@ export default function RechargeScreen() {
   }, []);
 
   const loadData = useCallback(async () => {
-    if (!activeRouter) {
+    const targetRouter = routers.find((r) => r.camp === selectedCamp) || activeRouter;
+    if (!targetRouter) {
       setData(null);
       return;
     }
@@ -123,7 +133,7 @@ export default function RechargeScreen() {
       const payload = await fetchFromGateway<{ users: HotspotUser[] }>(
         gatewayUrl,
         "/api/mikrotik/users",
-        activeRouter
+        targetRouter
       );
 
       const vouchers = payload.users
@@ -142,22 +152,18 @@ export default function RechargeScreen() {
 
       setData({
         vouchers,
-        currency: activeRouter?.currency ?? "AED",
+        currency: targetRouter.currency ?? "AED",
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load recharge data");
     } finally {
       setLoading(false);
     }
-  }, [gatewayUrl, activeRouter]);
+  }, [gatewayUrl, activeRouter, routers, selectedCamp]);
 
   useEffect(() => {
-    if (!activeRouter) {
-      setData(null);
-      return;
-    }
     void loadData();
-  }, [loadData, activeRouter]);
+  }, [loadData]);
 
   // Get available codes for selected plan
   const planGroups = useMemo(() => {
@@ -217,7 +223,8 @@ export default function RechargeScreen() {
       return;
     }
 
-    if (!activeRouter) return;
+    const targetRouter = routers.find((r) => r.camp === selectedCamp) || activeRouter;
+    if (!targetRouter) return;
 
     setProcessingCode(rechargeMode === "manual" ? "manual" : selectedCode!.id);
     try {
@@ -229,7 +236,7 @@ export default function RechargeScreen() {
       }>(
         gatewayUrl,
         "/api/mikrotik/vouchers/redeem",
-        activeRouter,
+        targetRouter,
         {
           method: "POST",
           body: rechargeMode === "manual"

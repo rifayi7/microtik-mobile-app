@@ -364,144 +364,15 @@ export default function GatewayScreen() {
         {/* Router List */}
         <View style={styles.sectionHeaderLight}>
           <Text style={styles.sectionTitleLight}>Your MikroTik Routers</Text>
-          {!isAdding && (
-            <TouchableOpacity
-              style={styles.addButtonInlineLight}
-              onPress={() => setIsAdding(true)}
-            >
-              <Plus size={16} color="#4A60D6" />
-              <Text style={styles.addButtonInlineTextLight}>Add New</Text>
-            </TouchableOpacity>
-          )}
         </View>
-
-        {isAdding && (
-          <View style={[styles.cardLight, styles.formCardLight]}>
-            <View style={styles.formHeaderLight}>
-              <Text style={styles.cardTitleLight}>
-                {editingId ? "Edit Router Configuration" : "Add Router Configuration"}
-              </Text>
-              <TouchableOpacity onPress={handleCancelEdit}>
-                <X size={20} color="#64748b" />
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.labelLight}>Session Name *</Text>
-            <TextInput
-              style={styles.formInputLight}
-              placeholder="e.g. Office Core"
-              placeholderTextColor="#94a3b8"
-              value={sessionName}
-              onChangeText={setSessionName}
-            />
-
-            <View style={styles.formRowLight}>
-              <View style={{ flex: 2, marginRight: 8 }}>
-                <Text style={styles.labelLight}>IP Address / Host *</Text>
-                <TextInput
-                  style={styles.formInputLight}
-                  placeholder="e.g. 192.168.88.1"
-                  placeholderTextColor="#94a3b8"
-                  value={host}
-                  onChangeText={setHost}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.labelLight}>Port *</Text>
-                <TextInput
-                  style={styles.formInputLight}
-                  placeholder="8728"
-                  placeholderTextColor="#94a3b8"
-                  value={port}
-                  onChangeText={setPort}
-                  keyboardType="numeric"
-                />
-              </View>
-            </View>
-
-            <View style={styles.formRowLight}>
-              <View style={{ flex: 1, marginRight: 8 }}>
-                <Text style={styles.labelLight}>Username *</Text>
-                <TextInput
-                  style={styles.formInputLight}
-                  placeholder="admin"
-                  placeholderTextColor="#94a3b8"
-                  value={username}
-                  onChangeText={setUsername}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.labelLight}>Password</Text>
-                <TextInput
-                  style={styles.formInputLight}
-                  placeholder="password"
-                  placeholderTextColor="#94a3b8"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-              </View>
-            </View>
-
-            <View style={styles.formRowLight}>
-              <View style={{ flex: 1, marginRight: 8 }}>
-                <Text style={styles.labelLight}>Currency Code</Text>
-                <TextInput
-                  style={styles.formInputLight}
-                  placeholder="AED"
-                  placeholderTextColor="#94a3b8"
-                  value={currency}
-                  onChangeText={setCurrency}
-                  autoCapitalize="characters"
-                />
-              </View>
-              <View style={[styles.switchContainerLight, { flex: 1 }]}>
-                <Text style={styles.labelLight}>Use TLS</Text>
-                <Switch
-                  value={useTls}
-                  onValueChange={setUseTls}
-                  trackColor={{ false: "#e2e8f0", true: "#4A60D6" }}
-                  thumbColor={useTls ? "#fff" : "#cbd5e1"}
-                />
-              </View>
-            </View>
-
-            <View style={styles.formActionsLight}>
-              <TouchableOpacity
-                style={styles.cancelButtonLight}
-                onPress={handleCancelEdit}
-              >
-                <Text style={styles.cancelButtonTextLight}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.submitButtonLight} onPress={handleAddRouter}>
-                <Text style={styles.submitButtonTextLight}>
-                  {editingId ? "Update Config" : "Save Config"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
 
         {routers.length === 0 ? (
           <View style={styles.emptyCardLight}>
             <Wifi size={36} color="#94a3b8" style={styles.emptyIconLight} />
-            <Text style={styles.emptyTitleLight}>No routers added</Text>
+            <Text style={styles.emptyTitleLight}>No routers available</Text>
             <Text style={styles.emptyDescLight}>
-              Add your MikroTik router connection details to monitor your hotspots.
+              Configure your MikroTik routers in the web admin portal to connect.
             </Text>
-            <TouchableOpacity
-              style={styles.emptyButtonLight}
-              onPress={() => setIsAdding(true)}
-            >
-              <Plus size={18} color="#fff" />
-              <Text style={styles.emptyButtonTextLight}>Add First Router</Text>
-            </TouchableOpacity>
           </View>
         ) : (
           routers.map((item) => {
@@ -526,33 +397,6 @@ export default function GatewayScreen() {
                 </View>
 
                 <View style={styles.routerActionsLight}>
-                  <TouchableOpacity
-                    style={styles.editBtnLight}
-                    onPress={() => handleEditRouter(item)}
-                  >
-                    <Edit2 size={16} color="#4A60D6" />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.deleteBtnLight}
-                    onPress={() => {
-                      Alert.alert(
-                        "Delete Router",
-                        `Are you sure you want to delete ${item.sessionName}?`,
-                        [
-                          { text: "Cancel", style: "cancel" },
-                          {
-                            text: "Delete",
-                            style: "destructive",
-                            onPress: () => void deleteRouter(item.id),
-                          },
-                        ]
-                      );
-                    }}
-                  >
-                    <Trash2 size={16} color="#ef4444" />
-                  </TouchableOpacity>
-
                   <TouchableOpacity
                     style={[
                       styles.connectBtnLight,
