@@ -214,11 +214,17 @@ export default function DashboardScreen() {
               </View>
               <View style={styles.cardColCenter}>
                 <Text style={styles.cardColLabel}>Today sale</Text>
-                <Text style={styles.saleCountText}>{item.todaySale}</Text>
+                <Text style={styles.saleAmountMain}>AED {Number(item.todaySale || 0).toFixed(0)}</Text>
+                {Number(item.todaySaleCount) > 0 && (
+                  <Text style={styles.saleCountSub}>{item.todaySaleCount} sold</Text>
+                )}
               </View>
               <View style={styles.cardColRight}>
                 <Text style={styles.cardColLabel}>Monthly sale</Text>
-                <Text style={styles.saleCountText}>{item.monthlySale}</Text>
+                <Text style={styles.saleAmountMain}>AED {Number(item.monthlySale || 0).toFixed(0)}</Text>
+                {Number(item.monthlySaleCount) > 0 && (
+                  <Text style={styles.saleCountSub}>{item.monthlySaleCount} sold</Text>
+                )}
               </View>
             </View>
           ))
@@ -544,6 +550,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: "#1e3a8a",
+  },
+  saleAmountMain: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#1e3a8a",
+  },
+  saleCountSub: {
+    fontSize: 11,
+    color: "#64748b",
+    marginTop: 1,
   },
   pendingCard: {
     backgroundColor: "#f0f7ff", // Nice light blue background as in image
