@@ -10,58 +10,78 @@ import {
   StatusBar,
   TouchableOpacity,
 } from "react-native";
-import { Bell, Wifi, Building2 } from "lucide-react-native";
+import { Bell, Wifi, Building2, DollarSign, TrendingUp, Award, Calendar } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useGateway } from "../../contexts/gateway-context";
 import { fetchFromGateway } from "../../lib/api-client";
 
+interface SalespersonStats {
+  totalRevenue: number;
+  todayRevenue: number;
+  monthlyRevenue: number;
+  todaySalesCount: number;
+  monthlySalesCount: number;
+  totalSalesCount: number;
+}
+
 export default function DashboardScreen() {
   const { gatewayUrl } = useGateway();
-  const [salesperson, setSalesperson] = useState("iqbalapricom");
+  const [salesperson, setSalesperson] = useState("Unknown");
   const [summaryList, setSummaryList] = useState<any[]>([]);
+  const [userStats, setUserStats] = useState<SalespersonStats>({
+    totalRevenue: 0,
+    todayRevenue: 0,
+    monthlyRevenue: 0,
+    todaySalesCount: 0,
+    monthlySalesCount: 0,
+    totalSalesCount: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadSalesperson = async () => {
-    try {
-      const name = await AsyncStorage.getItem("salesperson_name");
-      if (name) {
-        setSalesperson(name);
-      }
-    } catch (e) {
-      console.warn("Failed to load salesperson name from storage:", e);
-    }
-  };
-
-  const loadSummaryData = useCallback(async (isRefresh = false) => {
+  const loadSummaryData = useCallback(async (currentSalesperson?: string, isRefresh = false) => {
     if (!isRefresh) setLoading(true);
     setError(null);
 
+    const activeUser = currentSalesperson || salesperson;
+
     try {
-      const payload = await fetchFromGateway<{ data: any[] }>(
+      const payload = await fetchFromGateway<{ data: any[]; userStats?: SalespersonStats }>(
         gatewayUrl,
-        "/api/mikrotik/dashboard/sales-summary",
+        `/api/mikrotik/dashboard/sales-summary?salesperson=${encodeURIComponent(activeUser)}`,
         null,
         { method: "GET" }
       );
       setSummaryList(payload.data || []);
+      if (payload.userStats) {
+        setUserStats(payload.userStats);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load sales summary");
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [gatewayUrl]);
+  }, [gatewayUrl, salesperson]);
 
   useEffect(() => {
-    void loadSalesperson();
-    void loadSummaryData();
-  }, [loadSummaryData]);
+    async function init() {
+      try {
+        const name = await AsyncStorage.getItem("salesperson_name");
+        const activeName = name || "Unknown";
+        setSalesperson(activeName);
+        await loadSummaryData(activeName, false);
+      } catch {
+        void loadSummaryData(salesperson, false);
+      }
+    }
+    void init();
+  }, []);
 
   const onRefresh = () => {
     setRefreshing(true);
-    void loadSummaryData(true);
+    void loadSummaryData(salesperson, true);
   };
 
   if (loading && !refreshing) {
@@ -84,10 +104,10 @@ export default function DashboardScreen() {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Text style={styles.welcomeTitle}>Hello {salesperson}</Text>
-          <Text style={styles.welcomeSub}>Welcome</Text>
+          <Text style={styles.welcomeSub}>Welcome back</Text>
         </View>
         <TouchableOpacity style={styles.bellButton}>
-          <Bell size={24} color="#0f172a" />
+          <Bell size={22} color="#0f172a" />
         </TouchableOpacity>
       </View>
 
@@ -102,6 +122,52 @@ export default function DashboardScreen() {
           />
         }
       >
+        {/* LOGGED-IN SALESPERSON REVENUE CARD */}
+        <View style={styles.myRevenueCard}>
+          <View style={styles.myRevenueHeader}>
+            <View style={styles.iconCircle}>
+              <DollarSign size={20} color="#ffffff" />
+            </View>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={styles.myRevenueLabel}>My Total Sales Revenue</Text>
+              <Text style={styles.myRevenueAmount}>
+                AED {userStats.totalRevenue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </Text>
+            </View>
+            <View style={styles.badgeContainer}>
+              <Text style={styles.badgeText}>{userStats.totalSalesCount} Sold</Text>
+            </View>
+          </View>
+
+          <View style={styles.myRevenueDivider} />
+
+          <View style={styles.myRevenueBreakdown}>
+            <View style={styles.breakdownItem}>
+              <View style={styles.breakdownItemHeader}>
+                <TrendingUp size={14} color="#38bdf8" />
+                <Text style={styles.breakdownLabel}>Today</Text>
+              </View>
+              <Text style={styles.breakdownValue}>
+                AED {userStats.todayRevenue.toFixed(0)}
+              </Text>
+              <Text style={styles.breakdownSub}>{userStats.todaySalesCount} vouchers</Text>
+            </View>
+
+            <View style={styles.breakdownItemDivider} />
+
+            <View style={styles.breakdownItem}>
+              <View style={styles.breakdownItemHeader}>
+                <Calendar size={14} color="#a78bfa" />
+                <Text style={styles.breakdownLabel}>This Month</Text>
+              </View>
+              <Text style={styles.breakdownValue}>
+                AED {userStats.monthlyRevenue.toFixed(0)}
+              </Text>
+              <Text style={styles.breakdownSub}>{userStats.monthlySalesCount} vouchers</Text>
+            </View>
+          </View>
+        </View>
+
         {/* SALE ANALYSIS SECTION */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Sale Analysis</Text>
@@ -218,6 +284,95 @@ const styles = StyleSheet.create({
   scrollContainer: {
     paddingHorizontal: 20,
     paddingBottom: 40,
+  },
+  myRevenueCard: {
+    backgroundColor: "#1e3a8a", // Deep indigo / royal blue
+    borderRadius: 18,
+    padding: 18,
+    marginTop: 14,
+    marginBottom: 8,
+    shadowColor: "#1e3a8a",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  myRevenueHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  iconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  myRevenueLabel: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#93c5fd",
+  },
+  myRevenueAmount: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#ffffff",
+    marginTop: 2,
+  },
+  badgeContainer: {
+    backgroundColor: "rgba(56, 189, 248, 0.2)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(56, 189, 248, 0.4)",
+  },
+  badgeText: {
+    color: "#38bdf8",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  myRevenueDivider: {
+    height: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.12)",
+    marginVertical: 14,
+  },
+  myRevenueBreakdown: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  breakdownItem: {
+    flex: 1,
+  },
+  breakdownItemDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: "rgba(255, 255, 255, 0.12)",
+    marginHorizontal: 12,
+  },
+  breakdownItemHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginBottom: 2,
+  },
+  breakdownLabel: {
+    fontSize: 11,
+    color: "#bfdbfe",
+    fontWeight: "500",
+  },
+  breakdownValue: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#ffffff",
+  },
+  breakdownSub: {
+    fontSize: 10,
+    color: "#93c5fd",
+    marginTop: 1,
   },
   sectionHeader: {
     flexDirection: "row",
