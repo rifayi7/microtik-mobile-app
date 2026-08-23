@@ -189,30 +189,6 @@ export default function DashboardScreen() {
           </View>
         </View>
 
-        {/* LAST 5 COLLECTION SECTION */}
-        <View style={styles.collectionCard}>
-          <Text style={styles.collectionTitle}>Last 5 Collection</Text>
-          <View style={styles.collectionTableHeader}>
-            <Text style={styles.collectionColHeader}>Amount</Text>
-            <Text style={styles.collectionColCenter}>Date</Text>
-            <Text style={styles.collectionColRight}>Time</Text>
-          </View>
-
-          {lastCollections.length === 0 ? (
-            <View style={styles.collectionEmpty}>
-              <Text style={styles.collectionEmptyText}>No recent collections recorded</Text>
-            </View>
-          ) : (
-            lastCollections.map((item, idx) => (
-              <View key={idx} style={styles.collectionTableRow}>
-                <Text style={styles.collectionAmountText}>AED {item.amount.toFixed(0)}</Text>
-                <Text style={styles.collectionDateText}>{item.date || "—"}</Text>
-                <Text style={styles.collectionTimeText}>{item.time || "—"}</Text>
-              </View>
-            ))
-          )}
-        </View>
-
         {/* SALE ANALYSIS SECTION */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Sale Analysis</Text>
