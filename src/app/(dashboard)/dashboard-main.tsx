@@ -24,10 +24,32 @@ interface SalespersonStats {
   totalSalesCount: number;
 }
 
+interface OverallStats {
+  totalOutstanding: number;
+  totalSalesRevenue: number;
+  todayTotalSaleCount: number;
+  todayTotalSaleRevenue: number;
+}
+
+interface CollectionItem {
+  amount: number;
+  date: string;
+  time: string;
+  campName: string;
+  paidBy: string;
+}
+
 export default function DashboardScreen() {
   const { gatewayUrl } = useGateway();
   const [salesperson, setSalesperson] = useState("Unknown");
   const [summaryList, setSummaryList] = useState<any[]>([]);
+  const [lastCollections, setLastCollections] = useState<CollectionItem[]>([]);
+  const [overallStats, setOverallStats] = useState<OverallStats>({
+    totalOutstanding: 0,
+    totalSalesRevenue: 0,
+    todayTotalSaleCount: 0,
+    todayTotalSaleRevenue: 0,
+  });
   const [userStats, setUserStats] = useState<SalespersonStats>({
     totalRevenue: 0,
     todayRevenue: 0,
@@ -47,16 +69,21 @@ export default function DashboardScreen() {
     const activeUser = currentSalesperson || salesperson;
 
     try {
-      const payload = await fetchFromGateway<{ data: any[]; userStats?: SalespersonStats }>(
+      const payload = await fetchFromGateway<{ 
+        data: any[]; 
+        userStats?: SalespersonStats; 
+        overallStats?: OverallStats;
+        lastCollections?: CollectionItem[];
+      }>(
         gatewayUrl,
         `/api/mikrotik/dashboard/sales-summary?salesperson=${encodeURIComponent(activeUser)}`,
         null,
         { method: "GET" }
       );
       setSummaryList(payload.data || []);
-      if (payload.userStats) {
-        setUserStats(payload.userStats);
-      }
+      if (payload.userStats) setUserStats(payload.userStats);
+      if (payload.overallStats) setOverallStats(payload.overallStats);
+      if (payload.lastCollections) setLastCollections(payload.lastCollections);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load sales summary");
     } finally {
@@ -90,7 +117,7 @@ export default function DashboardScreen() {
         <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
         <View style={styles.centered}>
           <ActivityIndicator size="large" color="#4A60D6" />
-          <Text style={styles.loadingText}>Fetching sales analysis...</Text>
+          <Text style={styles.loadingText}>Fetching dashboard data...</Text>
         </View>
       </SafeAreaView>
     );
@@ -104,7 +131,7 @@ export default function DashboardScreen() {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Text style={styles.welcomeTitle}>Hello {salesperson}</Text>
-          <Text style={styles.welcomeSub}>Welcome back</Text>
+          <Text style={styles.welcomeSub}>Welcome</Text>
         </View>
         <TouchableOpacity style={styles.bellButton}>
           <Bell size={22} color="#0f172a" />
@@ -122,50 +149,68 @@ export default function DashboardScreen() {
           />
         }
       >
-        {/* LOGGED-IN SALESPERSON REVENUE CARD */}
-        <View style={styles.myRevenueCard}>
-          <View style={styles.myRevenueHeader}>
-            <View style={styles.iconCircle}>
-              <DollarSign size={20} color="#ffffff" />
-            </View>
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={styles.myRevenueLabel}>My Total Sales Revenue</Text>
-              <Text style={styles.myRevenueAmount}>
-                AED {userStats.totalRevenue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        {/* TOP ROW: Outstanding Balance & Today's Sale */}
+        <View style={styles.topCardsRow}>
+          {/* Outstanding Balance Card (Light Cyan/Blue) */}
+          <View style={styles.outstandingCard}>
+            <Text style={styles.topCardTitle}>Outstanding{"\n"}Balance</Text>
+            <View style={styles.topCardBottom}>
+              <Text style={styles.outstandingValue}>
+                AED <Text style={styles.outstandingValueBold}>
+                  {overallStats.totalOutstanding > 0 
+                    ? overallStats.totalOutstanding.toFixed(0) 
+                    : userStats.totalRevenue.toFixed(0)}
+                </Text>
               </Text>
-            </View>
-            <View style={styles.badgeContainer}>
-              <Text style={styles.badgeText}>{userStats.totalSalesCount} Sold</Text>
+              <Text style={styles.outstandingSubValue}>
+                {"{AED " + (overallStats.totalOutstanding > 0 ? overallStats.totalOutstanding.toFixed(0) : userStats.totalRevenue.toFixed(0)) + "}"}
+              </Text>
             </View>
           </View>
 
-          <View style={styles.myRevenueDivider} />
-
-          <View style={styles.myRevenueBreakdown}>
-            <View style={styles.breakdownItem}>
-              <View style={styles.breakdownItemHeader}>
-                <TrendingUp size={14} color="#38bdf8" />
-                <Text style={styles.breakdownLabel}>Today</Text>
-              </View>
-              <Text style={styles.breakdownValue}>
-                AED {userStats.todayRevenue.toFixed(0)}
+          {/* Today's Sale Card (Light Green) */}
+          <View style={styles.todaySaleCard}>
+            <Text style={styles.topCardTitle}>Today's{"\n"}Sale</Text>
+            <View style={styles.todayCardContent}>
+              <Text style={styles.statSmallLabel}>Amount</Text>
+              <Text style={styles.todayAmountValue}>
+                AED <Text style={styles.todayAmountValueBold}>
+                  {userStats.todayRevenue > 0 ? userStats.todayRevenue.toFixed(0) : (overallStats.todayTotalSaleRevenue || 0).toFixed(0)}
+                </Text>
               </Text>
-              <Text style={styles.breakdownSub}>{userStats.todaySalesCount} vouchers</Text>
-            </View>
 
-            <View style={styles.breakdownItemDivider} />
+              <View style={styles.todayDivider} />
 
-            <View style={styles.breakdownItem}>
-              <View style={styles.breakdownItemHeader}>
-                <Calendar size={14} color="#a78bfa" />
-                <Text style={styles.breakdownLabel}>This Month</Text>
-              </View>
-              <Text style={styles.breakdownValue}>
-                AED {userStats.monthlyRevenue.toFixed(0)}
+              <Text style={styles.statSmallLabel}>Count</Text>
+              <Text style={styles.todayCountValue}>
+                {userStats.todaySalesCount > 0 ? userStats.todaySalesCount : overallStats.todayTotalSaleCount}
               </Text>
-              <Text style={styles.breakdownSub}>{userStats.monthlySalesCount} vouchers</Text>
             </View>
           </View>
+        </View>
+
+        {/* LAST 5 COLLECTION SECTION */}
+        <View style={styles.collectionCard}>
+          <Text style={styles.collectionTitle}>Last 5 Collection</Text>
+          <View style={styles.collectionTableHeader}>
+            <Text style={styles.collectionColHeader}>Amount</Text>
+            <Text style={styles.collectionColCenter}>Date</Text>
+            <Text style={styles.collectionColRight}>Time</Text>
+          </View>
+
+          {lastCollections.length === 0 ? (
+            <View style={styles.collectionEmpty}>
+              <Text style={styles.collectionEmptyText}>No recent collections recorded</Text>
+            </View>
+          ) : (
+            lastCollections.map((item, idx) => (
+              <View key={idx} style={styles.collectionTableRow}>
+                <Text style={styles.collectionAmountText}>AED {item.amount.toFixed(0)}</Text>
+                <Text style={styles.collectionDateText}>{item.date || "—"}</Text>
+                <Text style={styles.collectionTimeText}>{item.time || "—"}</Text>
+              </View>
+            ))
+          )}
         </View>
 
         {/* SALE ANALYSIS SECTION */}
@@ -181,7 +226,7 @@ export default function DashboardScreen() {
             <Building2 size={36} color="#94a3b8" style={{ marginBottom: 8 }} />
             <Text style={styles.emptyText}>No sales analysis data available.</Text>
             <Text style={[styles.emptyText, { fontSize: 11, color: '#94a3b8', marginTop: 2 }]}>
-              Please add routers & record sales to see statistics.
+              Please connect routers & record sales to see statistics.
             </Text>
           </View>
         ) : (
@@ -189,7 +234,7 @@ export default function DashboardScreen() {
             <View key={index} style={styles.salesCard}>
               <View style={styles.cardCol}>
                 <Text style={styles.cardColLabel}>Camp Name</Text>
-                <Text style={styles.campNameBold}>{item.campName}</Text>
+                <Text style={styles.campNameBold} numberOfLines={2}>{item.campName}</Text>
               </View>
               <View style={styles.cardColCenter}>
                 <Text style={styles.cardColLabel}>Today sale</Text>
@@ -216,7 +261,7 @@ export default function DashboardScreen() {
             <View key={index} style={styles.pendingCard}>
               <View style={styles.pendingCardLeft}>
                 <Text style={styles.cardColLabel}>Camp Name</Text>
-                <Text style={styles.campNameBoldPending}>{item.campName}</Text>
+                <Text style={styles.campNameBoldPending} numberOfLines={2}>{item.campName}</Text>
               </View>
               <View style={styles.pendingCardRight}>
                 <Text style={styles.cardColLabel}>Outstanding</Text>
@@ -282,97 +327,178 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   scrollContainer: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingBottom: 40,
   },
-  myRevenueCard: {
-    backgroundColor: "#1e3a8a", // Deep indigo / royal blue
-    borderRadius: 18,
-    padding: 18,
-    marginTop: 14,
-    marginBottom: 8,
-    shadowColor: "#1e3a8a",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 4,
-  },
-  myRevenueHeader: {
+  topCardsRow: {
     flexDirection: "row",
-    alignItems: "center",
+    gap: 12,
+    marginTop: 14,
+    marginBottom: 12,
+  },
+  outstandingCard: {
+    flex: 1,
+    backgroundColor: "#e0f2fe", // Light soft cyan/blue from image
+    borderRadius: 18,
+    padding: 16,
+    minHeight: 160,
     justifyContent: "space-between",
+    borderWidth: 1,
+    borderColor: "#bae6fd",
+    shadowColor: "#0284c7",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  iconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
-    alignItems: "center",
-    justifyContent: "center",
+  todaySaleCard: {
+    flex: 1,
+    backgroundColor: "#dcfce7", // Light soft pastel green from image
+    borderRadius: 18,
+    padding: 16,
+    minHeight: 160,
+    justifyContent: "space-between",
+    borderWidth: 1,
+    borderColor: "#bbf7d0",
+    shadowColor: "#16a34a",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  myRevenueLabel: {
-    fontSize: 12,
+  topCardTitle: {
+    fontSize: 19,
+    fontWeight: "400",
+    color: "#334155",
+    lineHeight: 24,
+  },
+  topCardBottom: {
+    marginTop: 16,
+  },
+  outstandingValue: {
+    fontSize: 14,
+    color: "#2563eb",
     fontWeight: "500",
-    color: "#93c5fd",
   },
-  myRevenueAmount: {
+  outstandingValueBold: {
     fontSize: 22,
     fontWeight: "800",
-    color: "#ffffff",
+    color: "#1d4ed8",
+  },
+  outstandingSubValue: {
+    fontSize: 13,
+    color: "#64748b",
     marginTop: 2,
   },
-  badgeContainer: {
-    backgroundColor: "rgba(56, 189, 248, 0.2)",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(56, 189, 248, 0.4)",
+  todayCardContent: {
+    marginTop: 6,
   },
-  badgeText: {
-    color: "#38bdf8",
-    fontSize: 11,
-    fontWeight: "700",
-  },
-  myRevenueDivider: {
-    height: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.12)",
-    marginVertical: 14,
-  },
-  myRevenueBreakdown: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  breakdownItem: {
-    flex: 1,
-  },
-  breakdownItemDivider: {
-    width: 1,
-    height: 32,
-    backgroundColor: "rgba(255, 255, 255, 0.12)",
-    marginHorizontal: 12,
-  },
-  breakdownItemHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
+  statSmallLabel: {
+    fontSize: 12,
+    color: "#64748b",
     marginBottom: 2,
   },
-  breakdownLabel: {
-    fontSize: 11,
-    color: "#bfdbfe",
+  todayAmountValue: {
+    fontSize: 13,
+    color: "#15803d",
     fontWeight: "500",
   },
-  breakdownValue: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#ffffff",
+  todayAmountValueBold: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#15803d",
   },
-  breakdownSub: {
-    fontSize: 10,
-    color: "#93c5fd",
-    marginTop: 1,
+  todayDivider: {
+    height: 1,
+    backgroundColor: "#86efac",
+    marginVertical: 6,
+  },
+  todayCountValue: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#16a34a",
+  },
+  collectionCard: {
+    backgroundColor: "#ede9fe", // Soft lavender/purple card as in image
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#ddd6fe",
+    shadowColor: "#7c3aed",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  collectionTitle: {
+    fontSize: 18,
+    fontWeight: "400",
+    color: "#334155",
+    marginBottom: 14,
+  },
+  collectionTableHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    backgroundColor: "rgba(255, 255, 255, 0.7)",
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  collectionColHeader: {
+    flex: 1.2,
+    fontSize: 12,
+    color: "#64748b",
+    fontWeight: "500",
+  },
+  collectionColCenter: {
+    flex: 1,
+    fontSize: 12,
+    color: "#64748b",
+    fontWeight: "500",
+    textAlign: "center",
+  },
+  collectionColRight: {
+    flex: 1,
+    fontSize: 12,
+    color: "#64748b",
+    fontWeight: "500",
+    textAlign: "right",
+  },
+  collectionTableRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.5)",
+  },
+  collectionAmountText: {
+    flex: 1.2,
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#5b21b6",
+  },
+  collectionDateText: {
+    flex: 1,
+    fontSize: 12,
+    color: "#475569",
+    textAlign: "center",
+  },
+  collectionTimeText: {
+    flex: 1,
+    fontSize: 12,
+    color: "#475569",
+    textAlign: "right",
+  },
+  collectionEmpty: {
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  collectionEmptyText: {
+    fontSize: 12,
+    color: "#7c3aed",
+    opacity: 0.8,
   },
   sectionHeader: {
     flexDirection: "row",
