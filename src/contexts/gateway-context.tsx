@@ -35,7 +35,7 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
       const normalizedUrl = url.replace(/\/+$/, "");
       const result = await fetchFromGateway<{ routers: MikrotikRouterConfig[] }>(
         normalizedUrl,
-        "/api/mikrotik/routers",
+        "/api/mikrotik/routers?verified=true",
         null,
         { method: "GET" }
       );
