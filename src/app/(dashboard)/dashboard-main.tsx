@@ -183,7 +183,10 @@ export default function DashboardScreen() {
 
               <Text style={styles.statSmallLabel}>Count</Text>
               <Text style={styles.todayCountValue}>
-                {userStats.todaySalesCount > 0 ? userStats.todaySalesCount : overallStats.todayTotalSaleCount}
+                {(() => {
+                  const cnt = userStats.todaySalesCount > 0 ? userStats.todaySalesCount : overallStats.todayTotalSaleCount;
+                  return Number.isInteger(cnt) ? cnt.toString() : cnt.toFixed(1);
+                })()}
               </Text>
             </View>
           </View>
