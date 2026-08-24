@@ -11,19 +11,20 @@ import {
   SafeAreaView,
   StatusBar,
   Modal,
-  Platform,
 } from "react-native";
 import {
   Search,
   ShieldAlert,
   Clock,
-  CheckCircle,
   Calendar,
   X,
   Tag,
   Phone,
-  User,
+  Building2,
+  ChevronDown,
+  Check,
 } from "lucide-react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useGateway } from "../../contexts/gateway-context";
 import { fetchFromGateway } from "../../lib/api-client";
 
@@ -40,26 +41,44 @@ interface SalesLog {
 type DateFilterType = "today" | "yesterday" | "custom" | "all";
 
 export default function HistoryScreen() {
-  const { gatewayUrl, activeRouter } = useGateway();
+  const { gatewayUrl, routers } = useGateway();
   const [logs, setLogs] = useState<SalesLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [salesperson, setSalesperson] = useState("Unknown");
 
   // Filters State
   const [search, setSearch] = useState("");
   const [dateFilter, setDateFilter] = useState<DateFilterType>("today");
+  const [selectedCampFilter, setSelectedCampFilter] = useState<string>("all");
+  const [campDropdownOpen, setCampDropdownOpen] = useState(false);
   
   // Custom Date Modal State
   const [customModalOpen, setCustomModalOpen] = useState(false);
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
 
+  // Extract distinct camp names from registered routers
+  const campList = useMemo(() => {
+    const names = new Set<string>();
+    routers.forEach((r) => {
+      const name = r.camp || r.sessionName;
+      if (name) names.add(name);
+    });
+    return Array.from(names);
+  }, [routers]);
+
   const loadHistory = useCallback(async (isRefresh = false) => {
     if (!isRefresh) setLoading(true);
     setError(null);
 
     try {
+      const activeUser = (await AsyncStorage.getItem("salesperson_name")) || salesperson;
+      if (activeUser && activeUser !== "Unknown") {
+        setSalesperson(activeUser);
+      }
+
       let startDate: string | undefined = undefined;
       let endDate: string | undefined = undefined;
 
@@ -89,6 +108,7 @@ export default function HistoryScreen() {
           body: {
             startDate,
             endDate,
+            salesperson: activeUser && activeUser !== "Unknown" ? activeUser : undefined,
             search: search.trim() ? search.trim() : undefined,
           },
         }
@@ -105,7 +125,7 @@ export default function HistoryScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [gatewayUrl, activeRouter, dateFilter, search, customStartDate, customEndDate]);
+  }, [gatewayUrl, salesperson, dateFilter, search, customStartDate, customEndDate]);
 
   useFocusEffect(
     useCallback(() => {
@@ -132,14 +152,22 @@ export default function HistoryScreen() {
     void loadHistory();
   };
 
-  // Compact Single Card Design
+  // Filter logs by selected camp filter client-side
+  const filteredLogs = useMemo(() => {
+    if (selectedCampFilter === "all") return logs;
+    return logs.filter(
+      (item) => item.campName && item.campName.toLowerCase() === selectedCampFilter.toLowerCase()
+    );
+  }, [logs, selectedCampFilter]);
+
+  // Compact Single Card Design showing Camp Name instead of Salesperson
   const renderItem = ({ item }: { item: SalesLog }) => {
     const formattedTime = item.timestamp ? item.timestamp.split(" ")[1] || item.timestamp : "—";
     const formattedDate = item.timestamp ? item.timestamp.split(" ")[0] : "";
 
     return (
       <View style={styles.compactCard}>
-        {/* Top Row: Code & Price / Status */}
+        {/* Top Row: Code & Price */}
         <View style={styles.cardTopRow}>
           <View style={styles.codeWrap}>
             <Text style={styles.codeText}>{item.code}</Text>
@@ -152,13 +180,21 @@ export default function HistoryScreen() {
           </View>
         </View>
 
-        {/* Bottom Row: Plan + Mobile + Seller + Time */}
+        {/* Bottom Row: Camp Name + Plan + Mobile + Time */}
         <View style={styles.cardBottomRow}>
+          {/* Camp Name Badge */}
+          <View style={styles.campBadge}>
+            <Building2 size={10} color="#0284c7" />
+            <Text style={styles.campBadgeText}>{item.campName || "Camp"}</Text>
+          </View>
+
+          {/* Plan Pill */}
           <View style={styles.metaPill}>
             <Tag size={10} color="#6366f1" />
             <Text style={styles.metaPillText}>{item.validity}d</Text>
           </View>
 
+          {/* Customer Mobile */}
           {item.mobile ? (
             <View style={styles.metaItem}>
               <Phone size={10} color="#64748b" />
@@ -166,11 +202,7 @@ export default function HistoryScreen() {
             </View>
           ) : null}
 
-          <View style={styles.metaItem}>
-            <User size={10} color="#64748b" />
-            <Text style={styles.metaTextSeller}>{item.seller || "Direct"}</Text>
-          </View>
-
+          {/* Timestamp */}
           <View style={[styles.metaItem, { marginLeft: "auto" }]}>
             <Clock size={10} color="#94a3b8" />
             <Text style={styles.metaTimeText}>
@@ -193,7 +225,7 @@ export default function HistoryScreen() {
           <Search size={15} color="#94a3b8" />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search code, mobile, seller..."
+            placeholder="Search code, mobile..."
             placeholderTextColor="#94a3b8"
             value={search}
             onChangeText={setSearch}
@@ -211,44 +243,60 @@ export default function HistoryScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Date Filter Pills: Today | Yesterday | Custom Date */}
-        <View style={styles.datePillsRow}>
+        {/* Row with Camp Dropdown Selector and Date Filter Pills */}
+        <View style={styles.filterControlsRow}>
+          {/* Camp Select Dropdown Button */}
           <TouchableOpacity
-            style={[styles.datePill, dateFilter === "today" && styles.datePillActive]}
-            onPress={() => setDateFilter("today")}
+            style={styles.campSelectButton}
+            onPress={() => setCampDropdownOpen(true)}
+            activeOpacity={0.8}
           >
-            <Text style={[styles.datePillText, dateFilter === "today" && styles.datePillTextActive]}>
-              Today
+            <Building2 size={12} color="#0284c7" />
+            <Text style={styles.campSelectText} numberOfLines={1}>
+              {selectedCampFilter === "all" ? "All Camps" : selectedCampFilter}
             </Text>
+            <ChevronDown size={12} color="#64748b" />
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.datePill, dateFilter === "yesterday" && styles.datePillActive]}
-            onPress={() => setDateFilter("yesterday")}
-          >
-            <Text style={[styles.datePillText, dateFilter === "yesterday" && styles.datePillTextActive]}>
-              Yesterday
-            </Text>
-          </TouchableOpacity>
+          {/* Date Filter Pills */}
+          <View style={styles.datePillsRow}>
+            <TouchableOpacity
+              style={[styles.datePill, dateFilter === "today" && styles.datePillActive]}
+              onPress={() => setDateFilter("today")}
+            >
+              <Text style={[styles.datePillText, dateFilter === "today" && styles.datePillTextActive]}>
+                Today
+              </Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.datePill, dateFilter === "custom" && styles.datePillActive]}
-            onPress={() => setCustomModalOpen(true)}
-          >
-            <Calendar size={12} color={dateFilter === "custom" ? "#ffffff" : "#64748b"} />
-            <Text style={[styles.datePillText, dateFilter === "custom" && styles.datePillTextActive]}>
-              {dateFilter === "custom" && customStartDate ? customStartDate : "Custom Date"}
-            </Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.datePill, dateFilter === "yesterday" && styles.datePillActive]}
+              onPress={() => setDateFilter("yesterday")}
+            >
+              <Text style={[styles.datePillText, dateFilter === "yesterday" && styles.datePillTextActive]}>
+                Yesterday
+              </Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.datePill, dateFilter === "all" && styles.datePillActive]}
-            onPress={() => setDateFilter("all")}
-          >
-            <Text style={[styles.datePillText, dateFilter === "all" && styles.datePillTextActive]}>
-              All
-            </Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.datePill, dateFilter === "custom" && styles.datePillActive]}
+              onPress={() => setCustomModalOpen(true)}
+            >
+              <Calendar size={11} color={dateFilter === "custom" ? "#ffffff" : "#64748b"} />
+              <Text style={[styles.datePillText, dateFilter === "custom" && styles.datePillTextActive]}>
+                {dateFilter === "custom" && customStartDate ? customStartDate : "Custom"}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.datePill, dateFilter === "all" && styles.datePillActive]}
+              onPress={() => setDateFilter("all")}
+            >
+              <Text style={[styles.datePillText, dateFilter === "all" && styles.datePillTextActive]}>
+                All
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -266,17 +314,19 @@ export default function HistoryScreen() {
             <Text style={styles.retryBtnText}>Retry</Text>
           </TouchableOpacity>
         </View>
-      ) : logs.length === 0 ? (
+      ) : filteredLogs.length === 0 ? (
         <View style={styles.centered}>
           <Clock size={32} color="#94a3b8" style={{ marginBottom: 8 }} />
           <Text style={styles.emptyText}>No recharge transactions found</Text>
           <Text style={styles.emptySubText}>
-            {search || dateFilter !== "all" ? "Try adjusting your search or date filter" : "Recharged vouchers will appear here"}
+            {search || dateFilter !== "all" || selectedCampFilter !== "all"
+              ? "Try adjusting your search or camp/date filter"
+              : "Recharged vouchers will appear here"}
           </Text>
         </View>
       ) : (
         <FlatList
-          data={logs}
+          data={filteredLogs}
           keyExtractor={(item, index) => `${item.code}-${index}`}
           renderItem={renderItem}
           contentContainerStyle={styles.listContainer}
@@ -285,6 +335,72 @@ export default function HistoryScreen() {
           showsVerticalScrollIndicator={false}
         />
       )}
+
+      {/* Camp Dropdown Selector Modal */}
+      <Modal visible={campDropdownOpen} transparent animationType="fade">
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setCampDropdownOpen(false)}
+        >
+          <View style={styles.dropdownModalContent}>
+            <View style={styles.dropdownHeader}>
+              <Text style={styles.dropdownTitle}>Select Camp</Text>
+              <TouchableOpacity onPress={() => setCampDropdownOpen(false)}>
+                <X size={18} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.dropdownItem, selectedCampFilter === "all" && styles.dropdownItemActive]}
+              onPress={() => {
+                setSelectedCampFilter("all");
+                setCampDropdownOpen(false);
+              }}
+            >
+              <View style={styles.dropdownItemLeft}>
+                <Building2 size={16} color={selectedCampFilter === "all" ? "#4A60D6" : "#64748b"} />
+                <Text
+                  style={[
+                    styles.dropdownItemText,
+                    selectedCampFilter === "all" && styles.dropdownItemTextActive,
+                  ]}
+                >
+                  All Camps
+                </Text>
+              </View>
+              {selectedCampFilter === "all" && <Check size={16} color="#4A60D6" />}
+            </TouchableOpacity>
+
+            {campList.map((camp) => (
+              <TouchableOpacity
+                key={camp}
+                style={[
+                  styles.dropdownItem,
+                  selectedCampFilter === camp && styles.dropdownItemActive,
+                ]}
+                onPress={() => {
+                  setSelectedCampFilter(camp);
+                  setCampDropdownOpen(false);
+                }}
+              >
+                <View style={styles.dropdownItemLeft}>
+                  <Building2 size={16} color={selectedCampFilter === camp ? "#4A60D6" : "#64748b"} />
+                  <Text
+                    style={[
+                      styles.dropdownItemText,
+                      selectedCampFilter === camp && styles.dropdownItemTextActive,
+                    ]}
+                  >
+                    {camp}
+                  </Text>
+                </View>
+                {selectedCampFilter === camp && <Check size={16} color="#4A60D6" />}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Custom Date Range Picker Modal */}
       <Modal visible={customModalOpen} transparent animationType="fade">
@@ -376,16 +492,40 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     fontWeight: "700",
   },
+  filterControlsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 6,
+  },
+  campSelectButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "#f0f9ff",
+    borderWidth: 1,
+    borderColor: "#bae6fd",
+    paddingHorizontal: 8,
+    paddingVertical: 4.5,
+    borderRadius: 8,
+    maxWidth: 120,
+  },
+  campSelectText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#0369a1",
+    flexShrink: 1,
+  },
   datePillsRow: {
     flexDirection: "row",
-    gap: 6,
+    gap: 4,
     alignItems: "center",
   },
   datePill: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 10,
+    gap: 3,
+    paddingHorizontal: 8,
     paddingVertical: 4.5,
     borderRadius: 16,
     backgroundColor: "#f1f5f9",
@@ -397,7 +537,7 @@ const styles = StyleSheet.create({
     borderColor: "#4A60D6",
   },
   datePillText: {
-    fontSize: 11.5,
+    fontSize: 10.5,
     fontWeight: "600",
     color: "#64748b",
   },
@@ -455,7 +595,21 @@ const styles = StyleSheet.create({
   cardBottomRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
+  },
+  campBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: "#e0f2fe",
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 4,
+  },
+  campBadgeText: {
+    fontSize: 10.5,
+    fontWeight: "700",
+    color: "#0284c7",
   },
   metaPill: {
     flexDirection: "row",
@@ -480,11 +634,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "#475569",
     fontWeight: "500",
-  },
-  metaTextSeller: {
-    fontSize: 11,
-    color: "#4A60D6",
-    fontWeight: "600",
   },
   metaTimeText: {
     fontSize: 10.5,
@@ -558,6 +707,53 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "700",
     color: "#1e293b",
+  },
+  dropdownModalContent: {
+    backgroundColor: "#ffffff",
+    borderRadius: 14,
+    padding: 16,
+    width: "100%",
+    maxWidth: 300,
+    gap: 8,
+  },
+  dropdownHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f5f9",
+    paddingBottom: 8,
+    marginBottom: 4,
+  },
+  dropdownTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#1e293b",
+  },
+  dropdownItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  dropdownItemActive: {
+    backgroundColor: "#eff6ff",
+  },
+  dropdownItemLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  dropdownItemText: {
+    fontSize: 13,
+    color: "#475569",
+    fontWeight: "500",
+  },
+  dropdownItemTextActive: {
+    color: "#4A60D6",
+    fontWeight: "700",
   },
   inputGroup: {
     gap: 4,
