@@ -165,9 +165,6 @@ export default function DashboardScreen() {
                     : userStats.totalRevenue.toFixed(0)}
                 </Text>
               </Text>
-              <Text style={styles.outstandingSubValue}>
-                {"{AED " + (overallStats.totalOutstanding > 0 ? overallStats.totalOutstanding.toFixed(0) : userStats.totalRevenue.toFixed(0)) + "}"}
-              </Text>
             </View>
           </View>
 
