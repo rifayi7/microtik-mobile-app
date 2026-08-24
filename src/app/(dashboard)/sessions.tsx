@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { useFocusEffect } from "expo-router";
 import {
   StyleSheet,
@@ -10,6 +10,8 @@ import {
   ActivityIndicator,
   SafeAreaView,
   StatusBar,
+  Modal,
+  Platform,
 } from "react-native";
 import {
   Search,
@@ -35,7 +37,7 @@ interface SalesLog {
   campName?: string;
 }
 
-type DateFilterType = "all" | "today" | "yesterday" | "this_month";
+type DateFilterType = "today" | "yesterday" | "custom" | "all";
 
 export default function HistoryScreen() {
   const { gatewayUrl, activeRouter } = useGateway();
@@ -46,7 +48,12 @@ export default function HistoryScreen() {
 
   // Filters State
   const [search, setSearch] = useState("");
-  const [dateFilter, setDateFilter] = useState<DateFilterType>("all");
+  const [dateFilter, setDateFilter] = useState<DateFilterType>("today");
+  
+  // Custom Date Modal State
+  const [customModalOpen, setCustomModalOpen] = useState(false);
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customEndDate, setCustomEndDate] = useState("");
 
   const loadHistory = useCallback(async (isRefresh = false) => {
     if (!isRefresh) setLoading(true);
@@ -68,9 +75,9 @@ export default function HistoryScreen() {
         const yestStr = `${yest.getFullYear()}-${pad(yest.getMonth() + 1)}-${pad(yest.getDate())}`;
         startDate = yestStr;
         endDate = yestStr;
-      } else if (dateFilter === "this_month") {
-        startDate = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
-        endDate = todayStr;
+      } else if (dateFilter === "custom") {
+        if (customStartDate) startDate = customStartDate;
+        if (customEndDate) endDate = customEndDate;
       }
 
       const payload = await fetchFromGateway<{ success: boolean; sales: SalesLog[] }>(
@@ -98,7 +105,7 @@ export default function HistoryScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [gatewayUrl, activeRouter, dateFilter, search]);
+  }, [gatewayUrl, activeRouter, dateFilter, search, customStartDate, customEndDate]);
 
   useFocusEffect(
     useCallback(() => {
@@ -119,61 +126,56 @@ export default function HistoryScreen() {
     setSearch("");
   };
 
+  const applyCustomDates = () => {
+    setCustomModalOpen(false);
+    setDateFilter("custom");
+    void loadHistory();
+  };
+
+  // Compact Single Card Design
   const renderItem = ({ item }: { item: SalesLog }) => {
+    const formattedTime = item.timestamp ? item.timestamp.split(" ")[1] || item.timestamp : "—";
+    const formattedDate = item.timestamp ? item.timestamp.split(" ")[0] : "";
+
     return (
-      <View style={styles.historyCard}>
-        <View style={styles.cardHeader}>
-          <View style={styles.codeContainer}>
-            <Text style={styles.codeLabel}>Voucher Code</Text>
-            <Text style={styles.codeValue}>{item.code}</Text>
+      <View style={styles.compactCard}>
+        {/* Top Row: Code & Price / Status */}
+        <View style={styles.cardTopRow}>
+          <View style={styles.codeWrap}>
+            <Text style={styles.codeText}>{item.code}</Text>
+            <View style={styles.statusDot} />
           </View>
-          <View style={styles.statusBadge}>
-            <CheckCircle size={12} color="#16a34a" />
-            <Text style={styles.statusText}>Completed</Text>
+          <View style={styles.priceBadge}>
+            <Text style={styles.priceText}>
+              AED {item.price ? item.price.toFixed(0) : (item.validity === 30 ? 32 : 16)}
+            </Text>
           </View>
         </View>
 
-        <View style={styles.cardDetails}>
-          <View style={styles.detailRow}>
-            <View style={styles.detailLabelRow}>
-              <Phone size={13} color="#64748b" />
-              <Text style={styles.detailLabel}>Mobile</Text>
-            </View>
-            <Text style={styles.detailValue}>{item.mobile || "N/A"}</Text>
+        {/* Bottom Row: Plan + Mobile + Seller + Time */}
+        <View style={styles.cardBottomRow}>
+          <View style={styles.metaPill}>
+            <Tag size={10} color="#6366f1" />
+            <Text style={styles.metaPillText}>{item.validity}d</Text>
           </View>
 
-          <View style={styles.divider} />
-
-          <View style={styles.detailRow}>
-            <View style={styles.detailLabelRow}>
-              <Tag size={13} color="#64748b" />
-              <Text style={styles.detailLabel}>Plan / Validity</Text>
+          {item.mobile ? (
+            <View style={styles.metaItem}>
+              <Phone size={10} color="#64748b" />
+              <Text style={styles.metaText}>{item.mobile}</Text>
             </View>
-            <Text style={styles.detailValue}>
-              {item.validity} Days {item.price ? `(AED ${item.price.toFixed(0)})` : ""}
+          ) : null}
+
+          <View style={styles.metaItem}>
+            <User size={10} color="#64748b" />
+            <Text style={styles.metaTextSeller}>{item.seller || "Direct"}</Text>
+          </View>
+
+          <View style={[styles.metaItem, { marginLeft: "auto" }]}>
+            <Clock size={10} color="#94a3b8" />
+            <Text style={styles.metaTimeText}>
+              {dateFilter === "today" || dateFilter === "yesterday" ? formattedTime : `${formattedDate} ${formattedTime}`}
             </Text>
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.detailRow}>
-            <View style={styles.detailLabelRow}>
-              <User size={13} color="#64748b" />
-              <Text style={styles.detailLabel}>Salesperson</Text>
-            </View>
-            <Text style={[styles.detailValue, { fontWeight: "700", color: "#4A60D6" }]}>
-              {item.seller || "Direct"}
-            </Text>
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.detailRow}>
-            <View style={styles.detailLabelRow}>
-              <Clock size={13} color="#64748b" />
-              <Text style={styles.detailLabel}>Time</Text>
-            </View>
-            <Text style={styles.timeValue}>{item.timestamp || "—"}</Text>
           </View>
         </View>
       </View>
@@ -184,14 +186,14 @@ export default function HistoryScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
 
-      {/* Top Search & Filter Bar */}
+      {/* Top Filter & Search Section */}
       <View style={styles.topFilterContainer}>
-        {/* Search Input with Search & Clear Button */}
+        {/* Search Bar */}
         <View style={styles.searchBox}>
-          <Search size={16} color="#94a3b8" />
+          <Search size={15} color="#94a3b8" />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search voucher code, mobile, seller..."
+            placeholder="Search code, mobile, seller..."
             placeholderTextColor="#94a3b8"
             value={search}
             onChangeText={setSearch}
@@ -200,8 +202,8 @@ export default function HistoryScreen() {
             autoCapitalize="none"
           />
           {search.length > 0 && (
-            <TouchableOpacity onPress={clearSearch} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <X size={16} color="#94a3b8" />
+            <TouchableOpacity onPress={clearSearch} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <X size={15} color="#94a3b8" />
             </TouchableOpacity>
           )}
           <TouchableOpacity style={styles.searchButton} onPress={handleSearchSubmit}>
@@ -209,17 +211,8 @@ export default function HistoryScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Date Filter Pills */}
+        {/* Date Filter Pills: Today | Yesterday | Custom Date */}
         <View style={styles.datePillsRow}>
-          <TouchableOpacity
-            style={[styles.datePill, dateFilter === "all" && styles.datePillActive]}
-            onPress={() => setDateFilter("all")}
-          >
-            <Text style={[styles.datePillText, dateFilter === "all" && styles.datePillTextActive]}>
-              All Time
-            </Text>
-          </TouchableOpacity>
-
           <TouchableOpacity
             style={[styles.datePill, dateFilter === "today" && styles.datePillActive]}
             onPress={() => setDateFilter("today")}
@@ -239,11 +232,21 @@ export default function HistoryScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.datePill, dateFilter === "this_month" && styles.datePillActive]}
-            onPress={() => setDateFilter("this_month")}
+            style={[styles.datePill, dateFilter === "custom" && styles.datePillActive]}
+            onPress={() => setCustomModalOpen(true)}
           >
-            <Text style={[styles.datePillText, dateFilter === "this_month" && styles.datePillTextActive]}>
-              This Month
+            <Calendar size={12} color={dateFilter === "custom" ? "#ffffff" : "#64748b"} />
+            <Text style={[styles.datePillText, dateFilter === "custom" && styles.datePillTextActive]}>
+              {dateFilter === "custom" && customStartDate ? customStartDate : "Custom Date"}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.datePill, dateFilter === "all" && styles.datePillActive]}
+            onPress={() => setDateFilter("all")}
+          >
+            <Text style={[styles.datePillText, dateFilter === "all" && styles.datePillTextActive]}>
+              All
             </Text>
           </TouchableOpacity>
         </View>
@@ -252,12 +255,12 @@ export default function HistoryScreen() {
       {/* Log List View */}
       {loading && logs.length === 0 ? (
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#4A60D6" />
+          <ActivityIndicator size="small" color="#4A60D6" />
           <Text style={styles.loadingText}>Loading transactions...</Text>
         </View>
       ) : error ? (
         <View style={styles.centered}>
-          <ShieldAlert size={36} color="#ef4444" style={{ marginBottom: 12 }} />
+          <ShieldAlert size={32} color="#ef4444" style={{ marginBottom: 8 }} />
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={() => void loadHistory()}>
             <Text style={styles.retryBtnText}>Retry</Text>
@@ -265,10 +268,10 @@ export default function HistoryScreen() {
         </View>
       ) : logs.length === 0 ? (
         <View style={styles.centered}>
-          <Clock size={36} color="#94a3b8" style={{ marginBottom: 12 }} />
+          <Clock size={32} color="#94a3b8" style={{ marginBottom: 8 }} />
           <Text style={styles.emptyText}>No recharge transactions found</Text>
           <Text style={styles.emptySubText}>
-            {search || dateFilter !== "all" ? "Try clearing your filters or search term" : "Recharged vouchers will appear here"}
+            {search || dateFilter !== "all" ? "Try adjusting your search or date filter" : "Recharged vouchers will appear here"}
           </Text>
         </View>
       ) : (
@@ -282,6 +285,52 @@ export default function HistoryScreen() {
           showsVerticalScrollIndicator={false}
         />
       )}
+
+      {/* Custom Date Range Picker Modal */}
+      <Modal visible={customModalOpen} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Custom Date</Text>
+              <TouchableOpacity onPress={() => setCustomModalOpen(false)}>
+                <X size={18} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Start Date (YYYY-MM-DD)</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="2026-08-24"
+                value={customStartDate}
+                onChangeText={setCustomStartDate}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>End Date (YYYY-MM-DD)</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="2026-08-24"
+                value={customEndDate}
+                onChangeText={setCustomEndDate}
+              />
+            </View>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setCustomModalOpen(false)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalApplyBtn} onPress={applyCustomDates}>
+                <Text style={styles.modalApplyText}>Apply Filter</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -292,49 +341,53 @@ const styles = StyleSheet.create({
     backgroundColor: "#F8FAFC",
   },
   topFilterContainer: {
-    padding: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     backgroundColor: "#ffffff",
     borderBottomWidth: 1,
     borderBottomColor: "#e2e8f0",
-    gap: 10,
+    gap: 8,
   },
   searchBox: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#F8FAFC",
-    borderRadius: 10,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: "#e2e8f0",
-    paddingLeft: 12,
+    paddingLeft: 10,
     paddingRight: 4,
-    height: 44,
-    gap: 8,
+    height: 38,
+    gap: 6,
   },
   searchInput: {
     flex: 1,
     color: "#1e293b",
-    fontSize: 13,
+    fontSize: 12.5,
   },
   searchButton: {
     backgroundColor: "#4A60D6",
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 7,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
   },
   searchButtonText: {
     color: "#ffffff",
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: "700",
   },
   datePillsRow: {
     flexDirection: "row",
-    gap: 8,
-    overflow: "hidden",
+    gap: 6,
+    alignItems: "center",
   },
   datePill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4.5,
+    borderRadius: 16,
     backgroundColor: "#f1f5f9",
     borderWidth: 1,
     borderColor: "#e2e8f0",
@@ -344,7 +397,7 @@ const styles = StyleSheet.create({
     borderColor: "#4A60D6",
   },
   datePillText: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: "600",
     color: "#64748b",
   },
@@ -353,8 +406,90 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   listContainer: {
-    padding: 12,
+    padding: 10,
     paddingBottom: 24,
+    gap: 8,
+  },
+  compactCard: {
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    gap: 6,
+  },
+  cardTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  codeWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  codeText: {
+    fontSize: 14.5,
+    fontWeight: "800",
+    color: "#0f172a",
+    letterSpacing: 0.5,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#16a34a",
+  },
+  priceBadge: {
+    backgroundColor: "#ecfdf5",
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 5,
+  },
+  priceText: {
+    color: "#059669",
+    fontSize: 11.5,
+    fontWeight: "700",
+  },
+  cardBottomRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  metaPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: "#eef2ff",
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: 4,
+  },
+  metaPillText: {
+    fontSize: 10.5,
+    fontWeight: "700",
+    color: "#4f46e5",
+  },
+  metaItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+  },
+  metaText: {
+    fontSize: 11,
+    color: "#475569",
+    fontWeight: "500",
+  },
+  metaTextSeller: {
+    fontSize: 11,
+    color: "#4A60D6",
+    fontWeight: "600",
+  },
+  metaTimeText: {
+    fontSize: 10.5,
+    color: "#94a3b8",
+    fontWeight: "500",
   },
   centered: {
     flex: 1,
@@ -364,119 +499,109 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     color: "#64748b",
-    marginTop: 10,
-    fontSize: 14,
+    marginTop: 8,
+    fontSize: 13,
   },
   errorText: {
     color: "#ef4444",
     textAlign: "center",
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "600",
   },
   retryBtn: {
     backgroundColor: "#4A60D6",
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    marginTop: 12,
+    borderRadius: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    marginTop: 10,
   },
   retryBtnText: {
     color: "#ffffff",
     fontWeight: "bold",
-    fontSize: 13,
+    fontSize: 12,
   },
   emptyText: {
     color: "#475569",
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "600",
   },
   emptySubText: {
     color: "#94a3b8",
-    fontSize: 12,
-    marginTop: 4,
+    fontSize: 11.5,
+    marginTop: 3,
     textAlign: "center",
   },
-  historyCard: {
-    backgroundColor: "#ffffff",
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    borderRadius: 14,
-    marginBottom: 12,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 2,
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
   },
-  cardHeader: {
+  modalContent: {
+    backgroundColor: "#ffffff",
+    borderRadius: 14,
+    padding: 18,
+    width: "100%",
+    maxWidth: 360,
+    gap: 12,
+  },
+  modalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: 14,
-    backgroundColor: "#f8fafc",
     borderBottomWidth: 1,
     borderBottomColor: "#f1f5f9",
+    paddingBottom: 10,
   },
-  codeContainer: {
-    gap: 2,
-  },
-  codeLabel: {
-    fontSize: 11,
-    color: "#64748b",
-    fontWeight: "500",
-  },
-  codeValue: {
-    fontSize: 17,
-    fontWeight: "800",
-    color: "#1e293b",
-    letterSpacing: 1,
-  },
-  statusBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "#dcfce7",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  statusText: {
-    color: "#16a34a",
-    fontSize: 11,
+  modalTitle: {
+    fontSize: 15,
     fontWeight: "700",
+    color: "#1e293b",
   },
-  cardDetails: {
-    padding: 14,
+  inputGroup: {
+    gap: 4,
   },
-  detailRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  detailLabelRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  detailLabel: {
-    fontSize: 12,
+  inputLabel: {
+    fontSize: 11.5,
+    fontWeight: "600",
     color: "#64748b",
-    fontWeight: "500",
   },
-  detailValue: {
+  modalInput: {
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
     fontSize: 13,
     color: "#1e293b",
+  },
+  modalActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 8,
+    marginTop: 6,
+  },
+  modalCancelBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 6,
+  },
+  modalCancelText: {
+    color: "#64748b",
+    fontSize: 12,
     fontWeight: "600",
   },
-  timeValue: {
-    fontSize: 12,
-    color: "#475569",
-    fontWeight: "500",
+  modalApplyBtn: {
+    backgroundColor: "#4A60D6",
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 6,
   },
-  divider: {
-    height: 1,
-    backgroundColor: "#f1f5f9",
-    marginVertical: 10,
+  modalApplyText: {
+    color: "#ffffff",
+    fontSize: 12,
+    fontWeight: "700",
   },
 });
