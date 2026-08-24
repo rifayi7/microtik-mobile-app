@@ -2,6 +2,9 @@ import { DefaultTheme, ThemeProvider } from 'expo-router';
 import { Stack } from 'expo-router';
 import { GatewayProvider } from '../contexts/gateway-context';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { initDeprecationSuppressor } from '../lib/suppress-warnings';
+
+initDeprecationSuppressor();
 
 const CustomLightTheme = {
   ...DefaultTheme,

@@ -134,8 +134,7 @@ export default function DashboardLayout() {
         <Tabs.Screen
           name="profiles"
           options={{
-            title: "More",
-            tabBarIcon: ({ color }) => <MoreHorizontal size={22} color={color} />,
+            href: null, // Hide More (three dots) tab from bottom navigation bar
           }}
         />
       </Tabs>

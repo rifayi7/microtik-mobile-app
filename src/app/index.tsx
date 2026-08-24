@@ -27,7 +27,7 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useGateway } from "../contexts/gateway-context";
-import { type MikrotikRouterConfig } from "../lib/api-client";
+import { fetchFromGateway, type MikrotikRouterConfig } from "../lib/api-client";
 
 export default function GatewayScreen() {
   const router = useRouter();
@@ -72,21 +72,42 @@ export default function GatewayScreen() {
       return;
     }
 
-    if (
-      (user === "Fasil@2020" && pass === "1234") ||
-      (user === "Rifai" && pass === "3421")
-    ) {
-      try {
+    try {
+      // 1. Verify credentials against central database
+      const result = await fetchFromGateway<{ success: boolean; user?: { username: string }; error?: string }>(
+        gatewayUrl,
+        "/api/mikrotik/auth/login",
+        null,
+        {
+          method: "POST",
+          body: { username: user, password: pass },
+        }
+      );
+
+      if (result.success && result.user) {
+        await AsyncStorage.setItem("salesperson_name", result.user.username);
+        setCurrentUser(result.user.username);
+        setLoginUsername("");
+        setLoginPassword("");
+        Alert.alert("Success", `Logged in as operator: ${result.user.username}`);
+        return;
+      }
+
+      Alert.alert("Login Failed", result.error || "Invalid operator credentials");
+    } catch {
+      // 2. Offline fallback check
+      if (
+        (user === "Fasil@2020" && pass === "1234") ||
+        (user === "Rifai" && pass === "3421")
+      ) {
         await AsyncStorage.setItem("salesperson_name", user);
         setCurrentUser(user);
         setLoginUsername("");
         setLoginPassword("");
         Alert.alert("Success", `Logged in as operator: ${user}`);
-      } catch {
-        Alert.alert("Error", "Failed to save operator session");
+      } else {
+        Alert.alert("Error", "Invalid operator credentials or server offline");
       }
-    } else {
-      Alert.alert("Error", "Invalid operator credentials");
     }
   };
 
