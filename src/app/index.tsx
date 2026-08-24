@@ -197,13 +197,12 @@ export default function GatewayScreen() {
             <View style={styles.brandLogoContainer}>
               <Image
                 source={require("../../assets/images/green_wifi_icon.png")}
-                style={{ width: 64, height: 64, marginBottom: 8 }}
+                style={{ width: 72, height: 72, marginBottom: 12 }}
                 resizeMode="contain"
               />
               <Text style={styles.brandLogoText}>
-                Smart <Text style={styles.brandLogoTextBlue}>wifi</Text>
+                My <Text style={styles.brandLogoTextBlue}>wifi</Text>
               </Text>
-              <Text style={styles.brandLogoSub}>IT Service LLC</Text>
             </View>
 
             {/* Title */}
@@ -244,15 +243,6 @@ export default function GatewayScreen() {
                 <Text style={styles.loginButtonText}>LOGIN</Text>
               </TouchableOpacity>
             </View>
-          </View>
-
-          {/* Bottom Illustration */}
-          <View style={styles.illustrationContainer}>
-            <Image
-              source={require("../../assets/images/login_city_bg.jpg")}
-              style={styles.illustrationImage}
-              resizeMode="contain"
-            />
           </View>
         </ScrollView>
       </SafeAreaView>

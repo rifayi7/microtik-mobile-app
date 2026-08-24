@@ -73,18 +73,10 @@ export default function RechargeScreen() {
   const [loadingHistory, setLoadingHistory] = useState(false);
 
   const camps = useMemo(() => {
-    return routers.map((r) => r.camp || r.sessionName);
+    return routers.map((r) => r.camp || r.sessionName).filter(Boolean);
   }, [routers]);
 
   const [selectedCamp, setSelectedCamp] = useState("");
-
-  useEffect(() => {
-    if (activeRouter) {
-      setSelectedCamp(activeRouter.camp || activeRouter.sessionName);
-    } else if (camps.length > 0) {
-      setSelectedCamp(camps[0]);
-    }
-  }, [activeRouter, camps]);
 
   useEffect(() => {
     async function loadSalesperson() {
@@ -141,12 +133,6 @@ export default function RechargeScreen() {
     if (!data) return [];
     return [...data.plans].sort((a, b) => a.days - b.days);
   }, [data]);
-
-  useEffect(() => {
-    if (planGroups.length > 0 && !planGroups.some((group) => group.days === selectedPlan)) {
-      setSelectedPlan(planGroups[0].days);
-    }
-  }, [planGroups, selectedPlan]);
 
   const handleSelectPlan = (days: number) => {
     setSelectedPlan(days);
@@ -362,8 +348,10 @@ export default function RechargeScreen() {
                 }}
               >
                 <View style={styles.dropdownSelectorLeft}>
-                  <Building2 size={18} color="#4A60D6" style={styles.fieldIcon} />
-                  <Text style={styles.dropdownSelectorText} numberOfLines={1}>{selectedCamp}</Text>
+                  <Building2 size={18} color={selectedCamp ? "#4A60D6" : "#94a3b8"} style={styles.fieldIcon} />
+                  <Text style={[styles.dropdownSelectorText, !selectedCamp && { color: "#94a3b8" }]} numberOfLines={1}>
+                    {selectedCamp || "Select Camp"}
+                  </Text>
                 </View>
                 <ChevronDown size={18} color="#64748B" />
               </TouchableOpacity>
@@ -425,11 +413,11 @@ export default function RechargeScreen() {
                 }}
               >
                 <View style={styles.dropdownSelectorLeft}>
-                  <View style={styles.checkmarkIconBg}>
+                  <View style={[styles.checkmarkIconBg, selectedPlan === 0 && rechargeMode !== "manual" && { backgroundColor: "#cbd5e1" }]}>
                     <Check size={12} color="#ffffff" />
                   </View>
-                  <Text style={styles.dropdownSelectorText}>
-                    {rechargeMode === "manual" ? "Manual Code" : `${selectedPlan} Days`}
+                  <Text style={[styles.dropdownSelectorText, selectedPlan === 0 && rechargeMode !== "manual" && { color: "#94a3b8" }]}>
+                    {rechargeMode === "manual" ? "Manual Code" : selectedPlan > 0 ? `${selectedPlan} Days` : "Select Validity Plan"}
                   </Text>
                 </View>
                 <ChevronDown size={18} color="#64748B" />
@@ -503,10 +491,14 @@ export default function RechargeScreen() {
             <TouchableOpacity 
               style={[
                 styles.nextButton,
-                mobileNumber.trim().length !== 10 && { backgroundColor: "#cbd5e1" }
+                (mobileNumber.trim().length !== 10 || !selectedCamp || (rechargeMode === "select" && selectedPlan === 0) || (rechargeMode === "manual" && !manualVoucherCode.trim())) && { backgroundColor: "#cbd5e1" }
               ]}
-              disabled={mobileNumber.trim().length !== 10 || loadingHistory}
+              disabled={mobileNumber.trim().length !== 10 || !selectedCamp || (rechargeMode === "select" && selectedPlan === 0) || (rechargeMode === "manual" && !manualVoucherCode.trim()) || loadingHistory}
               onPress={async () => {
+                if (!selectedCamp) {
+                  Alert.alert("Camp Required", "Please select a camp first.");
+                  return;
+                }
                 if (mobileNumber.trim().length !== 10) {
                   Alert.alert("Invalid Mobile Number", "Mobile number must be exactly 10 digits.");
                   return;
@@ -515,8 +507,8 @@ export default function RechargeScreen() {
                   Alert.alert("Error", "Please enter manual voucher code");
                   return;
                 }
-                if (rechargeMode === "select" && !selectedPlan) {
-                  Alert.alert("Error", "No available vouchers for selected plan");
+                if (rechargeMode === "select" && selectedPlan === 0) {
+                  Alert.alert("Validity Required", "Please select a validity plan.");
                   return;
                 }
 
