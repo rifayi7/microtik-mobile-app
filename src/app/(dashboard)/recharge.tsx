@@ -376,18 +376,33 @@ export default function RechargeScreen() {
 
             {/* Mobile Number Input */}
             <View style={styles.fieldSection}>
-              <Text style={styles.fieldLabel}>Mobile Number</Text>
-              <View style={styles.inputWrapper}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                <Text style={styles.fieldLabel}>Mobile Number</Text>
+                <Text style={{ fontSize: 11, color: mobileNumber.length === 10 ? "#16a34a" : "#64748b", fontWeight: "600" }}>
+                  {mobileNumber.length}/10 digits
+                </Text>
+              </View>
+              <View style={[styles.inputWrapper, mobileNumber.length > 0 && mobileNumber.length !== 10 && { borderColor: "#f87171" }]}>
                 <Phone size={18} color="#4A60D6" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Mobile Number"
+                  placeholder="Enter 10-digit number (e.g. 0501234567)"
                   placeholderTextColor="#94a3b8"
                   value={mobileNumber}
-                  onChangeText={setMobileNumber}
-                  keyboardType="phone-pad"
+                  onChangeText={(val) => {
+                    // Only allow numeric characters and max 10 digits
+                    const cleaned = val.replace(/[^0-9]/g, "").slice(0, 10);
+                    setMobileNumber(cleaned);
+                  }}
+                  keyboardType="number-pad"
+                  maxLength={10}
                 />
               </View>
+              {mobileNumber.length > 0 && mobileNumber.length !== 10 && (
+                <Text style={{ fontSize: 11, color: "#ef4444", marginTop: 4, fontWeight: "600" }}>
+                  ⚠️ Mobile number must be exactly 10 digits
+                </Text>
+              )}
             </View>
 
             {/* Choose the Validity Dropdown */}
@@ -477,14 +492,14 @@ export default function RechargeScreen() {
 
             {/* Next Button */}
             <TouchableOpacity 
-              style={styles.nextButton}
+              style={[
+                styles.nextButton,
+                mobileNumber.trim().length !== 10 && { backgroundColor: "#cbd5e1" }
+              ]}
+              disabled={mobileNumber.trim().length !== 10}
               onPress={() => {
-                if (!mobileNumber.trim()) {
-                  Alert.alert("Error", "Please enter mobile number");
-                  return;
-                }
-                if (mobileNumber.trim().length < 8 || mobileNumber.trim().length > 12) {
-                  Alert.alert("Error", "Mobile number should be 8-12 digits");
+                if (mobileNumber.trim().length !== 10) {
+                  Alert.alert("Invalid Mobile Number", "Mobile number must be exactly 10 digits.");
                   return;
                 }
                 if (rechargeMode === "manual" && !manualVoucherCode.trim()) {
