@@ -63,6 +63,15 @@ export default function RechargeScreen() {
     paymentType: string;
   } | null>(null);
 
+  const [customerHistory, setCustomerHistory] = useState<{
+    code: string;
+    validity: number;
+    timestamp: string;
+    campName?: string;
+    price?: number;
+  }[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
   const camps = useMemo(() => {
     return routers.map((r) => r.camp || r.sessionName);
   }, [routers]);
@@ -496,8 +505,8 @@ export default function RechargeScreen() {
                 styles.nextButton,
                 mobileNumber.trim().length !== 10 && { backgroundColor: "#cbd5e1" }
               ]}
-              disabled={mobileNumber.trim().length !== 10}
-              onPress={() => {
+              disabled={mobileNumber.trim().length !== 10 || loadingHistory}
+              onPress={async () => {
                 if (mobileNumber.trim().length !== 10) {
                   Alert.alert("Invalid Mobile Number", "Mobile number must be exactly 10 digits.");
                   return;
@@ -510,10 +519,43 @@ export default function RechargeScreen() {
                   Alert.alert("Error", "No available vouchers for selected plan");
                   return;
                 }
-                setStep("confirmation");
+
+                // Fetch previous recharge history for this specific mobile number
+                setLoadingHistory(true);
+                try {
+                  const histRes = await fetchFromGateway<{ success: boolean; sales: any[] }>(
+                    gatewayUrl,
+                    "/api/mikrotik/reports",
+                    null,
+                    {
+                      method: "POST",
+                      body: { search: mobileNumber.trim() },
+                    }
+                  );
+                  if (histRes.success && histRes.sales) {
+                    setCustomerHistory(histRes.sales.map((s) => ({
+                      code: s.code,
+                      validity: s.validity,
+                      timestamp: s.timestamp || s.formattedTime || "",
+                      campName: s.campName,
+                      price: s.price,
+                    })));
+                  } else {
+                    setCustomerHistory([]);
+                  }
+                } catch {
+                  setCustomerHistory([]);
+                } finally {
+                  setLoadingHistory(false);
+                  setStep("confirmation");
+                }
               }}
             >
-              <Text style={styles.nextButtonText}>Next</Text>
+              {loadingHistory ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                <Text style={styles.nextButtonText}>Next</Text>
+              )}
             </TouchableOpacity>
           </View>
         )}
@@ -559,6 +601,43 @@ export default function RechargeScreen() {
                   <Text style={styles.receiptLabel}>Payment Method</Text>
                   <Text style={[styles.receiptValue, {textTransform: 'capitalize'}]}>{paymentType}</Text>
                 </View>
+              </View>
+
+              {/* Customer's Previous Recharge History */}
+              <View style={styles.prevHistoryContainer}>
+                <View style={styles.prevHistoryHeader}>
+                  <Clock size={14} color="#4A60D6" />
+                  <Text style={styles.prevHistoryTitle}>
+                    Previous Recharge History ({customerHistory.length})
+                  </Text>
+                </View>
+
+                {customerHistory.length === 0 ? (
+                  <View style={styles.prevHistoryEmpty}>
+                    <Text style={styles.prevHistoryEmptyText}>No previous recharges found for this number</Text>
+                  </View>
+                ) : (
+                  <View style={styles.prevHistoryList}>
+                    {customerHistory.slice(0, 5).map((item, idx) => (
+                      <View key={`${item.code}-${idx}`} style={styles.prevHistoryItem}>
+                        <View style={styles.prevHistoryLeft}>
+                          <View style={styles.prevCodeWrap}>
+                            <Text style={styles.prevCodeText}>{item.code}</Text>
+                            <View style={styles.prevPlanBadge}>
+                              <Text style={styles.prevPlanText}>{item.validity} Days</Text>
+                            </View>
+                          </View>
+                          <Text style={styles.prevDateText}>
+                            {item.timestamp ? item.timestamp : "Past Recharge"} • {item.campName || selectedCamp}
+                          </Text>
+                        </View>
+                        <Text style={styles.prevPriceText}>
+                          AED {item.price || (item.validity === 30 ? 32 : 16)}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
               </View>
 
               <View style={styles.confirmActionRow}>
@@ -1024,6 +1103,86 @@ const styles = StyleSheet.create({
   receiptDivider: {
     height: 1,
     backgroundColor: "#E2E8F0",
+  },
+  prevHistoryContainer: {
+    width: "100%",
+    backgroundColor: "#F8FAFC",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    padding: 10,
+    marginBottom: 16,
+    gap: 6,
+  },
+  prevHistoryHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
+    paddingBottom: 6,
+  },
+  prevHistoryTitle: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#1E293B",
+  },
+  prevHistoryEmpty: {
+    paddingVertical: 8,
+    alignItems: "center",
+  },
+  prevHistoryEmptyText: {
+    fontSize: 11,
+    color: "#94A3B8",
+    fontStyle: "italic",
+  },
+  prevHistoryList: {
+    gap: 6,
+  },
+  prevHistoryItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#ffffff",
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+  },
+  prevHistoryLeft: {
+    gap: 2,
+  },
+  prevCodeWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  prevCodeText: {
+    fontSize: 12.5,
+    fontWeight: "800",
+    color: "#0F172A",
+    letterSpacing: 0.5,
+  },
+  prevPlanBadge: {
+    backgroundColor: "#EFF6FF",
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: 4,
+  },
+  prevPlanText: {
+    fontSize: 9.5,
+    fontWeight: "700",
+    color: "#2563EB",
+  },
+  prevDateText: {
+    fontSize: 10,
+    color: "#64748B",
+  },
+  prevPriceText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#059669",
   },
   confirmActionRow: {
     flexDirection: "row",

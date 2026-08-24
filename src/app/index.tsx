@@ -195,9 +195,11 @@ export default function GatewayScreen() {
           <View style={styles.loginContentWrapper}>
             {/* Logo */}
             <View style={styles.brandLogoContainer}>
-              <View style={styles.logoIconBg}>
-                <Wifi size={28} color="#4A60D6" />
-              </View>
+              <Image
+                source={require("../../assets/images/green_wifi_icon.png")}
+                style={{ width: 64, height: 64, marginBottom: 8 }}
+                resizeMode="contain"
+              />
               <Text style={styles.brandLogoText}>
                 Smart <Text style={styles.brandLogoTextBlue}>wifi</Text>
               </Text>
