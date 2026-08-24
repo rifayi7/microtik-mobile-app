@@ -8,6 +8,7 @@ import {
   Phone,
 } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useFocusEffect } from "expo-router";
 import {
   ActivityIndicator,
   Alert,
@@ -119,13 +120,13 @@ export default function RechargeScreen() {
     }
   }, [gatewayUrl, currentCampRouter]);
 
-  useEffect(() => {
-    if (!currentCampRouter) {
-      setData(null);
-      return;
-    }
-    void loadData();
-  }, [loadData, currentCampRouter]);
+  useFocusEffect(
+    useCallback(() => {
+      if (currentCampRouter) {
+        void loadData();
+      }
+    }, [loadData, currentCampRouter])
+  );
 
   const planGroups = useMemo(() => {
     if (!data) return [];

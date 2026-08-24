@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { useFocusEffect } from "expo-router";
 import {
   ActivityIndicator,
   SafeAreaView,
@@ -28,17 +29,13 @@ export default function CouponScreen() {
   const [loadingCampId, setLoadingCampId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    async function loadSalesperson() {
-      try {
-        const name = await AsyncStorage.getItem("salesperson_name");
-        if (name) setSalesperson(name);
-      } catch (e) {
-        console.warn("Failed to load salesperson name:", e);
+  useFocusEffect(
+    useCallback(() => {
+      if (selectedCampId) {
+        void loadPlansForRouter(selectedCampId, true);
       }
-    }
-    void loadSalesperson();
-  }, []);
+    }, [selectedCampId])
+  );
 
   const loadPlansForRouter = async (routerId: string, isRefresh = false) => {
     const targetRouter = routers.find((r) => r.id === routerId);

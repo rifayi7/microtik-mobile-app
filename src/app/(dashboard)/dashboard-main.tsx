@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useFocusEffect } from "expo-router";
 import {
   StyleSheet,
   Text,
@@ -92,19 +93,21 @@ export default function DashboardScreen() {
     }
   }, [gatewayUrl, salesperson]);
 
-  useEffect(() => {
-    async function init() {
-      try {
-        const name = await AsyncStorage.getItem("salesperson_name");
-        const activeName = name || "Unknown";
-        setSalesperson(activeName);
-        await loadSummaryData(activeName, false);
-      } catch {
-        void loadSummaryData(salesperson, false);
+  useFocusEffect(
+    useCallback(() => {
+      async function refreshOnFocus() {
+        try {
+          const name = await AsyncStorage.getItem("salesperson_name");
+          const activeName = name || "Unknown";
+          setSalesperson(activeName);
+          await loadSummaryData(activeName, true);
+        } catch {
+          void loadSummaryData(salesperson, true);
+        }
       }
-    }
-    void init();
-  }, []);
+      void refreshOnFocus();
+    }, [loadSummaryData, salesperson])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);
