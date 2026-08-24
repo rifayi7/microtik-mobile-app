@@ -83,7 +83,7 @@ export default function HistoryScreen() {
       const payload = await fetchFromGateway<{ success: boolean; sales: SalesLog[] }>(
         gatewayUrl,
         "/api/mikrotik/reports",
-        activeRouter,
+        null, // Pass null so history fetches across ALL camps
         {
           method: "POST",
           body: {

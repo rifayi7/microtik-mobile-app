@@ -48,40 +48,7 @@ export default function DashboardLayout() {
     <>
       <Tabs
         screenOptions={{
-          headerShown: true,
-          headerTitleAlign: "left",
-          headerTitleContainerStyle: {
-            maxWidth: "60%",
-          },
-          headerRightContainerStyle: {
-            paddingRight: 16,
-          },
-          headerStyle: {
-            backgroundColor: "#ffffff",
-            borderBottomWidth: 1,
-            borderBottomColor: "#e2e8f0",
-            elevation: 0,
-            shadowOpacity: 0,
-          },
-          headerTitleStyle: {
-            color: "#1e293b",
-            fontSize: 16,
-            fontWeight: "bold",
-          },
-          headerTitle: activeRouter ? `${activeRouter.sessionName.toUpperCase()}` : "SMART WIFI",
-          headerRight: () => (
-            <Pressable 
-              style={({ pressed }) => [
-                styles.disconnectBtn,
-                pressed && { opacity: 0.6 }
-              ]}
-              onPress={() => setShowDisconnectModal(true)}
-              hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
-            >
-              <LogOut size={16} color="#ef4444" />
-              <Text style={styles.disconnectText}>Exit</Text>
-            </Pressable>
-          ),
+          headerShown: false,
           tabBarStyle: {
             backgroundColor: "#ffffff",
             borderTopWidth: 1,
@@ -134,7 +101,14 @@ export default function DashboardLayout() {
         <Tabs.Screen
           name="profiles"
           options={{
-            href: null, // Hide More (three dots) tab from bottom navigation bar
+            title: "More",
+            tabBarIcon: ({ color }) => <MoreHorizontal size={22} color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="index"
+          options={{
+            href: null, // Hide index redirect from tab bar
           }}
         />
       </Tabs>
