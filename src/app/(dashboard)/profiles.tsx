@@ -107,7 +107,7 @@ export default function MoreScreen() {
           <Text style={styles.sectionHeader}>App Information</Text>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>App Name</Text>
-            <Text style={styles.infoValue}>Smart WiFi Recharge</Text>
+            <Text style={styles.infoValue}>My WiFi Recharge</Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.infoRow}>

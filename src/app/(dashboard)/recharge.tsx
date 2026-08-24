@@ -12,6 +12,7 @@ import { useFocusEffect } from "expo-router";
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -39,7 +40,7 @@ interface RechargeData {
 export default function RechargeScreen() {
   const { gatewayUrl, activeRouter, routers, connectRouter } = useGateway();
   const [data, setData] = useState<RechargeData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [salesperson, setSalesperson] = useState("Unknown");
 
@@ -89,8 +90,9 @@ export default function RechargeScreen() {
   }, []);
 
   const currentCampRouter = useMemo(() => {
-    return routers.find((r) => (r.camp || r.sessionName) === selectedCamp) || activeRouter;
-  }, [routers, selectedCamp, activeRouter]);
+    if (!selectedCamp) return null;
+    return routers.find((r) => (r.camp || r.sessionName) === selectedCamp) || null;
+  }, [routers, selectedCamp]);
 
   const loadData = useCallback(async () => {
     if (!currentCampRouter) {
@@ -241,47 +243,6 @@ export default function RechargeScreen() {
       setProcessingCode(null);
     }
   };
-
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#4A60D6" />
-          <Text style={styles.loadingText}>Loading recharge data...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (error) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Error: {error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={loadData}>
-            <Text style={styles.retryButtonText}>Try Again</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (!activeRouter) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-        <View style={styles.centered}>
-          <Building2 size={48} color="#94a3b8" style={{ marginBottom: 12 }} />
-          <Text style={styles.errorText}>No active camp connected.</Text>
-          <Text style={[styles.errorText, { fontSize: 12, color: '#64748b', marginTop: 4, textAlign: 'center', paddingHorizontal: 32 }]}>
-            Please configure a router in the Web Admin Portal first.
-          </Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -595,7 +556,28 @@ export default function RechargeScreen() {
                 </View>
               </View>
 
-              {/* Customer's Previous Recharge History */}
+              <View style={styles.confirmActionRow}>
+                <TouchableOpacity 
+                  style={styles.confirmBackBtn} 
+                  onPress={() => setStep("entry")}
+                >
+                  <Text style={styles.confirmBackBtnText}>Back</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.confirmSubmitBtn} 
+                  onPress={handleConfirmRecharge}
+                  disabled={!!processingCode}
+                >
+                  {processingCode ? (
+                    <ActivityIndicator size="small" color="#ffffff" />
+                  ) : (
+                    <Text style={styles.confirmSubmitBtnText}>Confirm & Recharge</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              {/* Customer's Previous Recharge History (Displayed below Back & Confirm buttons) */}
               <View style={styles.prevHistoryContainer}>
                 <View style={styles.prevHistoryHeader}>
                   <Clock size={14} color="#4A60D6" />
@@ -630,27 +612,6 @@ export default function RechargeScreen() {
                     ))}
                   </View>
                 )}
-              </View>
-
-              <View style={styles.confirmActionRow}>
-                <TouchableOpacity 
-                  style={styles.confirmBackBtn} 
-                  onPress={() => setStep("entry")}
-                >
-                  <Text style={styles.confirmBackBtnText}>Back</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  style={styles.confirmSubmitBtn}
-                  onPress={handleConfirmRecharge}
-                  disabled={!!processingCode}
-                >
-                  {processingCode ? (
-                    <ActivityIndicator size="small" color="#ffffff" />
-                  ) : (
-                    <Text style={styles.confirmSubmitBtnText}>Confirm & Recharge</Text>
-                  )}
-                </TouchableOpacity>
               </View>
             </View>
           </View>
@@ -978,6 +939,12 @@ const styles = StyleSheet.create({
     color: "#1E293B",
     fontSize: 14,
     height: "100%",
+    ...Platform.select({
+      web: {
+        outlineStyle: "none",
+        outlineWidth: 0,
+      } as any,
+    }),
   },
   segmentedControl: {
     flexDirection: "row",
@@ -1103,7 +1070,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E2E8F0",
     padding: 10,
-    marginBottom: 16,
+    marginTop: 16,
     gap: 6,
   },
   prevHistoryHeader: {
