@@ -224,16 +224,10 @@ export default function DashboardScreen() {
               <View style={styles.cardColCenter}>
                 <Text style={styles.cardColLabel}>Today sale</Text>
                 <Text style={styles.saleAmountMain}>AED {Number(item.todaySale || 0).toFixed(0)}</Text>
-                {Number(item.todaySaleCount) > 0 && (
-                  <Text style={styles.saleCountSub}>{item.todaySaleCount} sold</Text>
-                )}
               </View>
               <View style={styles.cardColRight}>
                 <Text style={styles.cardColLabel}>Monthly sale</Text>
                 <Text style={styles.saleAmountMain}>AED {Number(item.monthlySale || 0).toFixed(0)}</Text>
-                {Number(item.monthlySaleCount) > 0 && (
-                  <Text style={styles.saleCountSub}>{item.monthlySaleCount} sold</Text>
-                )}
               </View>
             </View>
           ))

@@ -84,16 +84,23 @@ export default function HistoryScreen() {
       let startDate: string | undefined = undefined;
       let endDate: string | undefined = undefined;
 
-      const now = new Date();
-      const pad = (n: number) => n.toString().padStart(2, "0");
-      const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+      // Compute Dubai Local Date (UTC+4)
+      const getDubaiDateStr = (dateObj: Date) => {
+        // Dubai is UTC+4
+        const utc = dateObj.getTime() + dateObj.getTimezoneOffset() * 60000;
+        const dubaiTime = new Date(utc + 3600000 * 4);
+        const pad = (n: number) => n.toString().padStart(2, "0");
+        return `${dubaiTime.getFullYear()}-${pad(dubaiTime.getMonth() + 1)}-${pad(dubaiTime.getDate())}`;
+      };
+
+      const todayStr = getDubaiDateStr(new Date());
 
       if (dateFilter === "today") {
         startDate = todayStr;
         endDate = todayStr;
       } else if (dateFilter === "yesterday") {
         const yest = new Date(Date.now() - 86400000);
-        const yestStr = `${yest.getFullYear()}-${pad(yest.getMonth() + 1)}-${pad(yest.getDate())}`;
+        const yestStr = getDubaiDateStr(yest);
         startDate = yestStr;
         endDate = yestStr;
       } else if (dateFilter === "custom") {
@@ -163,9 +170,30 @@ export default function HistoryScreen() {
     );
   }, [logs, selectedCampFilter]);
 
+  // Helper to format ISO or SQL date string into clean Dubai time (hh:mm AM/PM)
+  const formatDubaiTime = (timestampStr?: string) => {
+    if (!timestampStr || timestampStr.trim() === "" || timestampStr === "null") return "—";
+    try {
+      // If it's already "YYYY-MM-DD HH:MM:SS"
+      const parts = timestampStr.split(" ");
+      const timePart = parts.length > 1 ? parts[1] : parts[0];
+      const timeComponents = timePart.split(":");
+      if (timeComponents.length >= 2) {
+        let hour = parseInt(timeComponents[0], 10);
+        const minute = timeComponents[1];
+        const ampm = hour >= 12 ? "PM" : "AM";
+        hour = hour % 12 || 12;
+        return `${hour}:${minute} ${ampm}`;
+      }
+      return timePart;
+    } catch {
+      return timestampStr;
+    }
+  };
+
   // Compact Single Card Design showing Camp Name instead of Salesperson
   const renderItem = ({ item }: { item: SalesLog }) => {
-    const formattedTime = item.timestamp ? item.timestamp.split(" ")[1] || item.timestamp : "—";
+    const formattedTime = formatDubaiTime(item.timestamp);
     const formattedDate = item.timestamp ? item.timestamp.split(" ")[0] : "";
 
     return (
@@ -205,7 +233,7 @@ export default function HistoryScreen() {
             </View>
           ) : null}
 
-          {/* Timestamp */}
+          {/* Timestamp in Dubai Time (hh:mm AM/PM) */}
           <View style={[styles.metaItem, { marginLeft: "auto" }]}>
             <Clock size={10} color="#94a3b8" />
             <Text style={styles.metaTimeText}>
