@@ -11,7 +11,9 @@ import {
   SafeAreaView,
   StatusBar,
   Modal,
+  Platform,
 } from "react-native";
+import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import {
   Search,
   ShieldAlert,
@@ -54,10 +56,14 @@ export default function HistoryScreen() {
   const [selectedCampFilter, setSelectedCampFilter] = useState<string>("all");
   const [campDropdownOpen, setCampDropdownOpen] = useState(false);
   
-  // Custom Date Modal State
+  // Custom Date Modal & Native Picker State
   const [customModalOpen, setCustomModalOpen] = useState(false);
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
+  const [startDateObj, setStartDateObj] = useState(new Date());
+  const [endDateObj, setEndDateObj] = useState(new Date());
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker] = useState(false);
 
   // Extract distinct camp names from registered routers
   const campList = useMemo(() => {
@@ -156,7 +162,75 @@ export default function HistoryScreen() {
     setSearch("");
   };
 
+  const formatDateYMD = (date: Date) => {
+    const pad = (n: number) => n.toString().padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  };
+
+  const handleOpenCustomModal = () => {
+    if (!customStartDate) {
+      const today = new Date();
+      setCustomStartDate(formatDateYMD(today));
+      setCustomEndDate(formatDateYMD(today));
+      setStartDateObj(today);
+      setEndDateObj(today);
+    }
+    setCustomModalOpen(true);
+  };
+
+  // In-Modal Calendar State
+  const [calendarMode, setCalendarMode] = useState<"start" | "end" | null>(null);
+  const [viewYear, setViewYear] = useState(new Date().getFullYear());
+  const [viewMonth, setViewMonth] = useState(new Date().getMonth());
+
+  const daysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
+  const firstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
+
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+
+  const handlePrevMonth = () => {
+    if (viewMonth === 0) {
+      setViewMonth(11);
+      setViewYear((y) => y - 1);
+    } else {
+      setViewMonth((m) => m - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (viewMonth === 11) {
+      setViewMonth(0);
+      setViewYear((y) => y + 1);
+    } else {
+      setViewMonth((m) => m + 1);
+    }
+  };
+
+  const handleSelectDay = (day: number) => {
+    const pad = (n: number) => n.toString().padStart(2, "0");
+    const formatted = `${viewYear}-${pad(viewMonth + 1)}-${pad(day)}`;
+    const selectedDate = new Date(viewYear, viewMonth, day);
+
+    if (calendarMode === "start") {
+      setStartDateObj(selectedDate);
+      setCustomStartDate(formatted);
+      if (selectedDate > endDateObj) {
+        setEndDateObj(selectedDate);
+        setCustomEndDate(formatted);
+      }
+      setCalendarMode(null);
+    } else if (calendarMode === "end") {
+      setEndDateObj(selectedDate);
+      setCustomEndDate(formatted);
+      setCalendarMode(null);
+    }
+  };
+
   const applyCustomDates = () => {
+    setCalendarMode(null);
     setCustomModalOpen(false);
     setDateFilter("custom");
     void loadHistory();
@@ -311,11 +385,11 @@ export default function HistoryScreen() {
 
             <TouchableOpacity
               style={[styles.datePill, dateFilter === "custom" && styles.datePillActive]}
-              onPress={() => setCustomModalOpen(true)}
+              onPress={handleOpenCustomModal}
             >
               <Calendar size={11} color={dateFilter === "custom" ? "#ffffff" : "#64748b"} />
               <Text style={[styles.datePillText, dateFilter === "custom" && styles.datePillTextActive]}>
-                {dateFilter === "custom" && customStartDate ? customStartDate : "Custom"}
+                {dateFilter === "custom" && customStartDate ? `${customStartDate.slice(5)}...` : "Custom"}
               </Text>
             </TouchableOpacity>
 
@@ -433,36 +507,111 @@ export default function HistoryScreen() {
         </TouchableOpacity>
       </Modal>
 
-      {/* Custom Date Range Picker Modal */}
+      {/* Custom Date Range Picker Modal with Visual Date Pickers */}
       <Modal visible={customModalOpen} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Custom Date</Text>
+              <Text style={styles.modalTitle}>Select Date Range</Text>
               <TouchableOpacity onPress={() => setCustomModalOpen(false)}>
                 <X size={18} color="#64748b" />
               </TouchableOpacity>
             </View>
 
+            {/* Start Date Button */}
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Start Date (YYYY-MM-DD)</Text>
-              <TextInput
-                style={styles.modalInput}
-                placeholder="2026-08-24"
-                value={customStartDate}
-                onChangeText={setCustomStartDate}
-              />
+              <Text style={styles.inputLabel}>From Date</Text>
+              <TouchableOpacity
+                style={[
+                  styles.datePickerTrigger,
+                  calendarMode === "start" && { borderColor: "#4A60D6", backgroundColor: "#eff6ff" }
+                ]}
+                onPress={() => {
+                  setViewYear(startDateObj.getFullYear());
+                  setViewMonth(startDateObj.getMonth());
+                  setCalendarMode(calendarMode === "start" ? null : "start");
+                }}
+              >
+                <Calendar size={16} color="#4A60D6" />
+                <Text style={styles.datePickerTriggerText}>
+                  {customStartDate || formatDateYMD(startDateObj)}
+                </Text>
+                <ChevronDown size={14} color="#64748b" style={{ marginLeft: "auto" }} />
+              </TouchableOpacity>
             </View>
 
+            {/* End Date Button */}
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>End Date (YYYY-MM-DD)</Text>
-              <TextInput
-                style={styles.modalInput}
-                placeholder="2026-08-24"
-                value={customEndDate}
-                onChangeText={setCustomEndDate}
-              />
+              <Text style={styles.inputLabel}>To Date</Text>
+              <TouchableOpacity
+                style={[
+                  styles.datePickerTrigger,
+                  calendarMode === "end" && { borderColor: "#4A60D6", backgroundColor: "#eff6ff" }
+                ]}
+                onPress={() => {
+                  setViewYear(endDateObj.getFullYear());
+                  setViewMonth(endDateObj.getMonth());
+                  setCalendarMode(calendarMode === "end" ? null : "end");
+                }}
+              >
+                <Calendar size={16} color="#4A60D6" />
+                <Text style={styles.datePickerTriggerText}>
+                  {customEndDate || formatDateYMD(endDateObj)}
+                </Text>
+                <ChevronDown size={14} color="#64748b" style={{ marginLeft: "auto" }} />
+              </TouchableOpacity>
             </View>
+
+            {/* In-Modal Interactive Calendar */}
+            {calendarMode !== null && (
+              <View style={styles.calendarContainer}>
+                {/* Month/Year Nav */}
+                <View style={styles.calendarNav}>
+                  <TouchableOpacity onPress={handlePrevMonth} style={styles.navBtn}>
+                    <Text style={styles.navBtnText}>‹</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.monthTitle}>
+                    {monthNames[viewMonth]} {viewYear}
+                  </Text>
+                  <TouchableOpacity onPress={handleNextMonth} style={styles.navBtn}>
+                    <Text style={styles.navBtnText}>›</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Day Headers */}
+                <View style={styles.weekRow}>
+                  {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
+                    <Text key={d} style={styles.weekDayText}>{d}</Text>
+                  ))}
+                </View>
+
+                {/* Days Grid */}
+                <View style={styles.daysGrid}>
+                  {Array.from({ length: firstDayOfMonth(viewYear, viewMonth) }).map((_, i) => (
+                    <View key={`empty-${i}`} style={styles.dayCell} />
+                  ))}
+                  {Array.from({ length: daysInMonth(viewYear, viewMonth) }).map((_, i) => {
+                    const day = i + 1;
+                    const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+                    const isSelected = calendarMode === "start"
+                      ? customStartDate === dateStr
+                      : customEndDate === dateStr;
+
+                    return (
+                      <TouchableOpacity
+                        key={day}
+                        style={[styles.dayCell, isSelected && styles.dayCellSelected]}
+                        onPress={() => handleSelectDay(day)}
+                      >
+                        <Text style={[styles.dayText, isSelected && styles.dayTextSelected]}>
+                          {day}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
 
             <View style={styles.modalActions}>
               <TouchableOpacity
@@ -794,6 +943,22 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#64748b",
   },
+  datePickerTrigger: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  datePickerTriggerText: {
+    fontSize: 13,
+    color: "#1e293b",
+    fontWeight: "600",
+  },
   modalInput: {
     backgroundColor: "#F8FAFC",
     borderWidth: 1,
@@ -803,6 +968,72 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     fontSize: 13,
     color: "#1e293b",
+  },
+  calendarContainer: {
+    backgroundColor: "#F8FAFC",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    padding: 10,
+    marginTop: 4,
+    gap: 8,
+  },
+  calendarNav: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  navBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 2,
+    backgroundColor: "#e2e8f0",
+    borderRadius: 6,
+  },
+  navBtnText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#334155",
+  },
+  monthTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#1e293b",
+  },
+  weekRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 2,
+  },
+  weekDayText: {
+    width: 32,
+    textAlign: "center",
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#94a3b8",
+  },
+  daysGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+  },
+  dayCell: {
+    width: "14.28%",
+    height: 32,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 6,
+    marginVertical: 1,
+  },
+  dayCellSelected: {
+    backgroundColor: "#4A60D6",
+  },
+  dayText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#334155",
+  },
+  dayTextSelected: {
+    color: "#ffffff",
+    fontWeight: "800",
   },
   modalActions: {
     flexDirection: "row",
