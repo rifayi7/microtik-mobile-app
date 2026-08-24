@@ -374,11 +374,11 @@ export default function RechargeScreen() {
                 }}
               >
                 <View style={styles.dropdownSelectorLeft}>
-                  <View style={[styles.checkmarkIconBg, selectedPlan === 0 && rechargeMode !== "manual" && { backgroundColor: "#cbd5e1" }]}>
+                  <View style={[styles.checkmarkIconBg, selectedPlan === 0 && { backgroundColor: "#cbd5e1" }]}>
                     <Check size={12} color="#ffffff" />
                   </View>
-                  <Text style={[styles.dropdownSelectorText, selectedPlan === 0 && rechargeMode !== "manual" && { color: "#94a3b8" }]}>
-                    {rechargeMode === "manual" ? "Manual Code" : selectedPlan > 0 ? `${selectedPlan} Days` : "Select Validity Plan"}
+                  <Text style={[styles.dropdownSelectorText, selectedPlan === 0 && { color: "#94a3b8" }]}>
+                    {selectedPlan > 0 ? `${selectedPlan} Days` : "Select Validity Plan"}
                   </Text>
                 </View>
                 <ChevronDown size={18} color="#64748B" />
@@ -386,48 +386,29 @@ export default function RechargeScreen() {
 
               {showValidityDropdown && (
                 <View style={styles.dropdownOptionsContainer}>
-                  <TouchableOpacity 
-                    style={styles.dropdownOptionItem}
-                    onPress={() => {
-                      setRechargeMode("manual");
-                      setShowValidityDropdown(false);
-                    }}
-                  >
-                    <Text style={styles.dropdownOptionText}>Manual Code Entry</Text>
-                  </TouchableOpacity>
-                  {planGroups.map((group) => (
-                    <TouchableOpacity 
-                      key={group.days} 
-                      style={styles.dropdownOptionItem}
-                      onPress={() => {
-                        setRechargeMode("select");
-                        handleSelectPlan(group.days);
-                        setShowValidityDropdown(false);
-                      }}
-                    >
-                      <Text style={styles.dropdownOptionText}>{group.days} Days ({group.available_count} available)</Text>
-                    </TouchableOpacity>
-                  ))}
+                  {planGroups.length === 0 ? (
+                    <View style={styles.dropdownOptionItem}>
+                      <Text style={[styles.dropdownOptionText, { color: "#94a3b8", fontStyle: "italic" }]}>
+                        {selectedCamp ? "No vouchers in stock for this camp" : "Please select a camp first"}
+                      </Text>
+                    </View>
+                  ) : (
+                    planGroups.map((group) => (
+                      <TouchableOpacity 
+                        key={group.days} 
+                        style={styles.dropdownOptionItem}
+                        onPress={() => {
+                          handleSelectPlan(group.days);
+                          setShowValidityDropdown(false);
+                        }}
+                      >
+                        <Text style={styles.dropdownOptionText}>{group.days} Days ({group.available_count} available)</Text>
+                      </TouchableOpacity>
+                    ))
+                  )}
                 </View>
               )}
             </View>
-
-            {/* Manual Code Input (Visible only if rechargeMode === "manual") */}
-            {rechargeMode === "manual" && (
-              <View style={styles.fieldSection}>
-                <Text style={styles.fieldLabel}>Manual Voucher Code</Text>
-                <View style={styles.inputWrapper}>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Enter manual 9-character code"
-                    placeholderTextColor="#94a3b8"
-                    value={manualVoucherCode}
-                    onChangeText={setManualVoucherCode}
-                    autoCapitalize="characters"
-                  />
-                </View>
-              </View>
-            )}
 
             {/* Choose Payment Type */}
             <View style={styles.fieldSection}>
@@ -449,29 +430,49 @@ export default function RechargeScreen() {
             </View>
 
             {/* Next Button */}
-            <TouchableOpacity 
-              style={[
-                styles.nextButton,
-                (mobileNumber.trim().length !== 10 || !selectedCamp || (rechargeMode === "select" && selectedPlan === 0) || (rechargeMode === "manual" && !manualVoucherCode.trim())) && { backgroundColor: "#cbd5e1" }
-              ]}
-              disabled={mobileNumber.trim().length !== 10 || !selectedCamp || (rechargeMode === "select" && selectedPlan === 0) || (rechargeMode === "manual" && !manualVoucherCode.trim()) || loadingHistory}
-              onPress={async () => {
-                if (!selectedCamp) {
-                  Alert.alert("Camp Required", "Please select a camp first.");
-                  return;
-                }
-                if (mobileNumber.trim().length !== 10) {
-                  Alert.alert("Invalid Mobile Number", "Mobile number must be exactly 10 digits.");
-                  return;
-                }
-                if (rechargeMode === "manual" && !manualVoucherCode.trim()) {
-                  Alert.alert("Error", "Please enter manual voucher code");
-                  return;
-                }
-                if (rechargeMode === "select" && selectedPlan === 0) {
-                  Alert.alert("Validity Required", "Please select a validity plan.");
-                  return;
-                }
+            {(() => {
+              const selectedPlanGroup = planGroups.find((g) => g.days === selectedPlan);
+              const availableCount = selectedPlanGroup ? selectedPlanGroup.available_count : 0;
+              const isOutOfStock = selectedPlan > 0 && availableCount <= 0;
+              const isFormIncomplete =
+                mobileNumber.trim().length !== 10 ||
+                !selectedCamp ||
+                selectedPlan === 0 ||
+                isOutOfStock ||
+                loadingHistory;
+
+              return (
+                <>
+                  {isOutOfStock && (
+                    <View style={{ marginBottom: 10, padding: 10, backgroundColor: "#fee2e2", borderRadius: 8, borderWidth: 1, borderColor: "#fca5a5" }}>
+                      <Text style={{ color: "#b91c1c", fontSize: 12, fontWeight: "600", textAlign: "center" }}>
+                        ⚠️ Out of Stock: No available voucher codes for {selectedPlan}-Days plan in {selectedCamp}.
+                      </Text>
+                    </View>
+                  )}
+                  <TouchableOpacity 
+                    style={[
+                      styles.nextButton,
+                      isFormIncomplete && { backgroundColor: "#cbd5e1" }
+                    ]}
+                    disabled={isFormIncomplete}
+                    onPress={async () => {
+                      if (!selectedCamp) {
+                        Alert.alert("Camp Required", "Please select a camp first.");
+                        return;
+                      }
+                      if (mobileNumber.trim().length !== 10) {
+                        Alert.alert("Invalid Mobile Number", "Mobile number must be exactly 10 digits.");
+                        return;
+                      }
+                      if (selectedPlan === 0) {
+                        Alert.alert("Validity Required", "Please select a validity plan.");
+                        return;
+                      }
+                      if (availableCount <= 0) {
+                        Alert.alert("Out of Stock", `No available vouchers found for ${selectedPlan}-Days plan.`);
+                        return;
+                      }
 
                 // Fetch previous recharge history for this specific mobile number
                 setLoadingHistory(true);
@@ -510,6 +511,9 @@ export default function RechargeScreen() {
                 <Text style={styles.nextButtonText}>Next</Text>
               )}
             </TouchableOpacity>
+            </>
+          );
+        })()}
           </View>
         )}
 
@@ -534,21 +538,9 @@ export default function RechargeScreen() {
 
                 <View style={styles.receiptRow}>
                   <Text style={styles.receiptLabel}>Validity Period</Text>
-                  <Text style={styles.receiptValue}>
-                    {rechargeMode === "manual" ? "Manual Voucher Code" : `${selectedPlan} Days`}
-                  </Text>
+                  <Text style={styles.receiptValue}>{selectedPlan} Days</Text>
                 </View>
                 <View style={styles.receiptDivider} />
-
-                {rechargeMode === "manual" && (
-                  <>
-                    <View style={styles.receiptRow}>
-                      <Text style={styles.receiptLabel}>Voucher Code</Text>
-                      <Text style={styles.receiptValue}>{manualVoucherCode}</Text>
-                    </View>
-                    <View style={styles.receiptDivider} />
-                  </>
-                )}
 
                 <View style={styles.receiptRow}>
                   <Text style={styles.receiptLabel}>Payment Method</Text>
