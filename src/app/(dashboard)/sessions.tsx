@@ -75,6 +75,8 @@ export default function HistoryScreen() {
 
     try {
       const activeUser = (await AsyncStorage.getItem("salesperson_name")) || salesperson;
+      const storedUserId = await AsyncStorage.getItem("salesperson_id");
+
       if (activeUser && activeUser !== "Unknown") {
         setSalesperson(activeUser);
       }
@@ -109,6 +111,7 @@ export default function HistoryScreen() {
             startDate,
             endDate,
             salesperson: activeUser && activeUser !== "Unknown" ? activeUser : undefined,
+            salesPersonId: storedUserId ? Number(storedUserId) : undefined,
             search: search.trim() ? search.trim() : undefined,
           },
         }

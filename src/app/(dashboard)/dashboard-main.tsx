@@ -43,6 +43,7 @@ interface CollectionItem {
 export default function DashboardScreen() {
   const { gatewayUrl } = useGateway();
   const [salesperson, setSalesperson] = useState("Unknown");
+  const [displayName, setDisplayName] = useState("Salesperson");
   const [summaryList, setSummaryList] = useState<any[]>([]);
   const [lastCollections, setLastCollections] = useState<CollectionItem[]>([]);
   const [overallStats, setOverallStats] = useState<OverallStats>({
@@ -70,6 +71,11 @@ export default function DashboardScreen() {
     const activeUser = currentSalesperson || salesperson;
 
     try {
+      const storedUserId = await AsyncStorage.getItem("salesperson_id");
+      const urlQuery = storedUserId
+        ? `/api/mikrotik/dashboard/sales-summary?salesPersonId=${encodeURIComponent(storedUserId)}&salesperson=${encodeURIComponent(activeUser)}`
+        : `/api/mikrotik/dashboard/sales-summary?salesperson=${encodeURIComponent(activeUser)}`;
+
       const payload = await fetchFromGateway<{ 
         data: any[]; 
         userStats?: SalespersonStats; 
@@ -77,7 +83,7 @@ export default function DashboardScreen() {
         lastCollections?: CollectionItem[];
       }>(
         gatewayUrl,
-        `/api/mikrotik/dashboard/sales-summary?salesperson=${encodeURIComponent(activeUser)}`,
+        urlQuery,
         null,
         { method: "GET" }
       );
@@ -98,8 +104,10 @@ export default function DashboardScreen() {
       async function refreshOnFocus() {
         try {
           const name = await AsyncStorage.getItem("salesperson_name");
+          const dName = await AsyncStorage.getItem("salesperson_display_name");
           const activeName = name || "Unknown";
           setSalesperson(activeName);
+          setDisplayName(dName || activeName);
           await loadSummaryData(activeName, true);
         } catch {
           void loadSummaryData(salesperson, true);
@@ -133,7 +141,7 @@ export default function DashboardScreen() {
       {/* Header Profile Info */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Text style={styles.welcomeTitle}>Hello {salesperson}</Text>
+          <Text style={styles.welcomeTitle}>Hello {displayName}</Text>
           <Text style={styles.welcomeSub}>Welcome</Text>
         </View>
         <TouchableOpacity style={styles.bellButton}>
@@ -160,9 +168,7 @@ export default function DashboardScreen() {
             <View style={styles.topCardBottom}>
               <Text style={styles.outstandingValue}>
                 AED <Text style={styles.outstandingValueBold}>
-                  {overallStats.totalOutstanding > 0 
-                    ? overallStats.totalOutstanding.toFixed(0) 
-                    : userStats.totalRevenue.toFixed(0)}
+                  {userStats.totalRevenue.toFixed(0)}
                 </Text>
               </Text>
             </View>
@@ -175,7 +181,7 @@ export default function DashboardScreen() {
               <Text style={styles.statSmallLabel}>Amount</Text>
               <Text style={styles.todayAmountValue}>
                 AED <Text style={styles.todayAmountValueBold}>
-                  {userStats.todayRevenue > 0 ? userStats.todayRevenue.toFixed(0) : (overallStats.todayTotalSaleRevenue || 0).toFixed(0)}
+                  {userStats.todayRevenue.toFixed(0)}
                 </Text>
               </Text>
 
@@ -184,7 +190,7 @@ export default function DashboardScreen() {
               <Text style={styles.statSmallLabel}>Count</Text>
               <Text style={styles.todayCountValue}>
                 {(() => {
-                  const cnt = userStats.todaySalesCount > 0 ? userStats.todaySalesCount : overallStats.todayTotalSaleCount;
+                  const cnt = userStats.todaySalesCount;
                   return Number.isInteger(cnt) ? cnt.toString() : cnt.toFixed(1);
                 })()}
               </Text>

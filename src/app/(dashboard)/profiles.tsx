@@ -9,6 +9,8 @@ import {
   ScrollView,
   Platform,
   Alert,
+  ActivityIndicator,
+  Modal,
 } from "react-native";
 import { LogOut, User, Shield, Info, Smartphone, CheckCircle, Power } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -20,13 +22,17 @@ export default function MoreScreen() {
   const router = useRouter();
   const { disconnectRouter } = useGateway();
   const [salesperson, setSalesperson] = useState("Unknown");
+  const [displayName, setDisplayName] = useState("Salesperson");
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
     async function loadUser() {
       try {
         const user = await AsyncStorage.getItem("salesperson_name");
+        const dName = await AsyncStorage.getItem("salesperson_display_name");
         if (user) setSalesperson(user);
+        if (dName) setDisplayName(dName);
       } catch (e) {
         console.warn("Failed to load user info:", e);
       }
@@ -36,15 +42,22 @@ export default function MoreScreen() {
 
   const handleConfirmLogout = async () => {
     setShowLogoutModal(false);
+    setIsLoggingOut(true);
     try {
       await AsyncStorage.removeItem("salesperson_name");
+      await AsyncStorage.removeItem("salesperson_display_name");
       await disconnectRouter();
+      
+      // Brief pause so transition looks clean
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      
       if (Platform.OS === "web") {
         window.location.href = "/";
       } else {
         router.replace("/");
       }
     } catch (e) {
+      setIsLoggingOut(false);
       Alert.alert("Error", "Failed to logout. Please try again.");
     }
   };
@@ -60,7 +73,8 @@ export default function MoreScreen() {
             <User size={32} color="#4A60D6" />
           </View>
           <View style={styles.accountInfo}>
-            <Text style={styles.salespersonName}>{salesperson}</Text>
+            <Text style={styles.salespersonName}>{displayName}</Text>
+            <Text style={styles.usernameSubText}>@{salesperson}</Text>
             <View style={styles.roleBadge}>
               <Shield size={12} color="#16a34a" />
               <Text style={styles.roleText}>Active Salesperson</Text>
@@ -122,6 +136,16 @@ export default function MoreScreen() {
         onConfirm={handleConfirmLogout}
         onCancel={() => setShowLogoutModal(false)}
       />
+
+      {/* Loading Modal on Logout */}
+      <Modal visible={isLoggingOut} transparent animationType="fade">
+        <View style={styles.loadingOverlay}>
+          <View style={styles.loadingModalCard}>
+            <ActivityIndicator size="large" color="#4A60D6" />
+            <Text style={styles.loggingOutText}>Logging out...</Text>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -168,6 +192,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "800",
     color: "#0f172a",
+  },
+  usernameSubText: {
+    fontSize: 12,
+    color: "#64748b",
+    fontWeight: "500",
   },
   roleBadge: {
     flexDirection: "row",
@@ -263,5 +292,30 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     fontWeight: "700",
     color: "#16a34a",
+  },
+  loadingOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  loadingModalCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    paddingVertical: 24,
+    paddingHorizontal: 32,
+    alignItems: "center",
+    gap: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  loggingOutText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#1e293b",
   },
 });

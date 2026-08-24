@@ -187,6 +187,8 @@ export default function RechargeScreen() {
 
     setProcessingCode(rechargeMode === "manual" ? "manual" : String(selectedPlan));
     try {
+      const storedUserId = await AsyncStorage.getItem("salesperson_id");
+
       const result = await fetchFromGateway<{ 
         success: boolean; 
         code?: string; 
@@ -203,11 +205,13 @@ export default function RechargeScreen() {
                 voucherCode: manualVoucherCode.trim(),
                 mobileNumber: mobileNumber.trim(),
                 salesperson,
+                salesPersonId: storedUserId ? Number(storedUserId) : undefined,
               }
             : {
                 validity_days: selectedPlan,
                 mobileNumber: mobileNumber.trim(),
                 salesperson,
+                salesPersonId: storedUserId ? Number(storedUserId) : undefined,
               },
         }
       );

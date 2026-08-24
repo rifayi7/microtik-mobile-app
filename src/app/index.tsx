@@ -74,7 +74,11 @@ export default function GatewayScreen() {
 
     try {
       // 1. Verify credentials against central database
-      const result = await fetchFromGateway<{ success: boolean; user?: { username: string }; error?: string }>(
+      const result = await fetchFromGateway<{
+        success: boolean;
+        user?: { id?: number; username: string; displayName?: string };
+        error?: string;
+      }>(
         gatewayUrl,
         "/api/mikrotik/auth/login",
         null,
@@ -85,11 +89,16 @@ export default function GatewayScreen() {
       );
 
       if (result.success && result.user) {
+        const dName = result.user.displayName || result.user.username;
+        if (result.user.id) {
+          await AsyncStorage.setItem("salesperson_id", String(result.user.id));
+        }
         await AsyncStorage.setItem("salesperson_name", result.user.username);
-        setCurrentUser(result.user.username);
+        await AsyncStorage.setItem("salesperson_display_name", dName);
+        setCurrentUser(dName);
         setLoginUsername("");
         setLoginPassword("");
-        Alert.alert("Success", `Logged in as operator: ${result.user.username}`);
+        Alert.alert("Success", `Logged in as: ${dName}`);
         return;
       }
 
@@ -100,11 +109,15 @@ export default function GatewayScreen() {
         (user === "Fasil@2020" && pass === "1234") ||
         (user === "Rifai" && pass === "3421")
       ) {
+        const dName = user === "Fasil@2020" ? "Fasil" : "Rifai";
+        const userId = user === "Fasil@2020" ? "7" : "8";
+        await AsyncStorage.setItem("salesperson_id", userId);
         await AsyncStorage.setItem("salesperson_name", user);
-        setCurrentUser(user);
+        await AsyncStorage.setItem("salesperson_display_name", dName);
+        setCurrentUser(dName);
         setLoginUsername("");
         setLoginPassword("");
-        Alert.alert("Success", `Logged in as operator: ${user}`);
+        Alert.alert("Success", `Logged in as: ${dName}`);
       } else {
         Alert.alert("Error", "Invalid operator credentials or server offline");
       }

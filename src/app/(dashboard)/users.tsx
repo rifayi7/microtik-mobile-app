@@ -23,7 +23,7 @@ interface PlanCount {
 
 export default function CouponScreen() {
   const { gatewayUrl, routers } = useGateway();
-  const [salesperson, setSalesperson] = useState("iqbalapricom");
+  const [salesperson, setSalesperson] = useState("Salesperson");
   const [campPlans, setCampPlans] = useState<Record<string, PlanCount[]>>({});
   const [selectedCampId, setSelectedCampId] = useState<string | null>(null);
   const [loadingCampId, setLoadingCampId] = useState<string | null>(null);
@@ -31,6 +31,14 @@ export default function CouponScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      async function loadUser() {
+        try {
+          const dName = await AsyncStorage.getItem("salesperson_display_name");
+          const uName = await AsyncStorage.getItem("salesperson_name");
+          setSalesperson(dName || uName || "Salesperson");
+        } catch {}
+      }
+      void loadUser();
       if (selectedCampId) {
         void loadPlansForRouter(selectedCampId, true);
       }
