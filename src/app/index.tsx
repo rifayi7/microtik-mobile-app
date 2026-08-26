@@ -244,6 +244,15 @@ export default function GatewayScreen() {
               </TouchableOpacity>
             </View>
           </View>
+
+          {/* Bottom Illustration Photo */}
+          <View style={styles.illustrationContainer}>
+            <Image
+              source={require("../../assets/images/app-bottom-photo-in-login-page.png")}
+              style={styles.illustrationImage}
+              resizeMode="contain"
+            />
+          </View>
         </ScrollView>
       </SafeAreaView>
     );
