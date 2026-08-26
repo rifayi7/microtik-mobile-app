@@ -259,7 +259,7 @@ export default function GatewayScreen() {
           <View style={styles.logoBadgeLight}>
             <Wifi size={24} color="#4A60D6" />
           </View>
-          <Text style={styles.titleLight}>SmartWifi Gateway</Text>
+          <Text style={styles.titleLight}>My WiFi</Text>
           <Text style={styles.subtitleLight}>MikroTik RouterOS Gateway Manager</Text>
         </View>
 
