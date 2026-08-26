@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { fetchFromGateway, type MikrotikRouterConfig } from "../lib/api-client";
+import { DEFAULT_GATEWAY_URL } from "../constants/config";
 
 interface GatewayContextType {
   gatewayUrl: string;
@@ -25,7 +26,7 @@ const STORAGE_ROUTERS = "mikrotik_routers_list";
 const STORAGE_ACTIVE_ROUTER_ID = "mikrotik_active_router_id";
 
 export function GatewayProvider({ children }: { children: React.ReactNode }) {
-  const [gatewayUrl, setGatewayState] = useState<string>("http://localhost:3000");
+  const [gatewayUrl, setGatewayState] = useState<string>(DEFAULT_GATEWAY_URL);
   const [routers, setRoutersState] = useState<MikrotikRouterConfig[]>([]);
   const [activeRouter, setActiveRouterState] = useState<MikrotikRouterConfig | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -67,11 +68,11 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
     async function loadStorage() {
       try {
         const savedGateway = await AsyncStorage.getItem(STORAGE_GATEWAY_URL);
-        let normalizedUrl = "http://localhost:3000";
-        if (savedGateway) {
+        let normalizedUrl = DEFAULT_GATEWAY_URL;
+        if (savedGateway && savedGateway.trim() !== "") {
           normalizedUrl = savedGateway.replace(/\/+$/, "");
-          setGatewayState(normalizedUrl);
         }
+        setGatewayState(normalizedUrl);
 
         const savedRouters = await AsyncStorage.getItem(STORAGE_ROUTERS);
         let parsedRouters: MikrotikRouterConfig[] = [];

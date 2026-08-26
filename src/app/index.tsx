@@ -28,6 +28,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useGateway } from "../contexts/gateway-context";
 import { fetchFromGateway, type MikrotikRouterConfig } from "../lib/api-client";
+import { SHOW_GATEWAY_CONFIG_SCREEN, DEFAULT_GATEWAY_URL } from "../constants/config";
 
 export default function GatewayScreen() {
   const router = useRouter();
@@ -38,8 +39,10 @@ export default function GatewayScreen() {
     connectToGateway,
   } = useGateway();
 
-  const [inputUrl, setInputUrl] = useState(gatewayUrl);
+  const [inputUrl, setInputUrl] = useState(gatewayUrl || DEFAULT_GATEWAY_URL);
   const [isConnectingGateway, setIsConnectingGateway] = useState(false);
+  const [overrideShowGateway, setOverrideShowGateway] = useState(SHOW_GATEWAY_CONFIG_SCREEN);
+  const [logoTapCount, setLogoTapCount] = useState(0);
 
   // Operator Login State
   const [currentUser, setCurrentUser] = useState<string | null>(null);
@@ -53,6 +56,10 @@ export default function GatewayScreen() {
         const storedUser = await AsyncStorage.getItem("salesperson_name");
         if (storedUser) {
           setCurrentUser(storedUser);
+          if (!overrideShowGateway) {
+            void connectToGateway(gatewayUrl || DEFAULT_GATEWAY_URL);
+            router.replace("/(dashboard)");
+          }
         }
       } catch (err) {
         console.error("Failed to load operator login state", err);
@@ -61,7 +68,7 @@ export default function GatewayScreen() {
       }
     }
     void checkLogin();
-  }, []);
+  }, [overrideShowGateway]);
 
   const handleOperatorLogin = async () => {
     const user = loginUsername.trim();
@@ -74,12 +81,13 @@ export default function GatewayScreen() {
 
     try {
       // 1. Verify credentials against central database
+      const activeUrl = gatewayUrl || DEFAULT_GATEWAY_URL;
       const result = await fetchFromGateway<{
         success: boolean;
         user?: { id?: number; username: string; displayName?: string };
         error?: string;
       }>(
-        gatewayUrl,
+        activeUrl,
         "/api/mikrotik/auth/login",
         null,
         {
@@ -98,7 +106,15 @@ export default function GatewayScreen() {
         setCurrentUser(dName);
         setLoginUsername("");
         setLoginPassword("");
-        Alert.alert("Success", `Logged in as: ${dName}`);
+
+        if (!overrideShowGateway) {
+          try {
+            await connectToGateway(activeUrl);
+          } catch (e) {
+            console.warn("Auto gateway connect warning:", e);
+          }
+          router.replace("/(dashboard)");
+        }
         return;
       }
 
@@ -117,7 +133,15 @@ export default function GatewayScreen() {
         setCurrentUser(dName);
         setLoginUsername("");
         setLoginPassword("");
-        Alert.alert("Success", `Logged in as: ${dName}`);
+
+        if (!overrideShowGateway) {
+          try {
+            await connectToGateway(gatewayUrl || DEFAULT_GATEWAY_URL);
+          } catch (e) {
+            console.warn("Auto gateway connect warning:", e);
+          }
+          router.replace("/(dashboard)");
+        }
       } else {
         Alert.alert("Error", "Invalid operator credentials or server offline");
       }
@@ -193,8 +217,26 @@ export default function GatewayScreen() {
         <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
         <ScrollView contentContainerStyle={styles.loginScrollContainer} keyboardShouldPersistTaps="handled">
           <View style={styles.loginContentWrapper}>
-            {/* Logo */}
-            <View style={styles.brandLogoContainer}>
+            {/* Logo with secret 5-tap developer toggle */}
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => {
+                const next = logoTapCount + 1;
+                setLogoTapCount(next);
+                if (next >= 5) {
+                  setLogoTapCount(0);
+                  const newMode = !overrideShowGateway;
+                  setOverrideShowGateway(newMode);
+                  Alert.alert(
+                    "Developer Option",
+                    newMode
+                      ? "Manual Backend Gateway URL configuration mode enabled."
+                      : "Direct automatic Vercel mode restored."
+                  );
+                }
+              }}
+              style={styles.brandLogoContainer}
+            >
               <Image
                 source={require("../../assets/images/green_wifi_icon.png")}
                 style={{ width: 72, height: 72, marginBottom: 12 }}
@@ -203,7 +245,7 @@ export default function GatewayScreen() {
               <Text style={styles.brandLogoText}>
                 My <Text style={styles.brandLogoTextBlue}>wifi</Text>
               </Text>
-            </View>
+            </TouchableOpacity>
 
             {/* Title */}
             <Text style={styles.loginWelcomeText}>
@@ -255,6 +297,15 @@ export default function GatewayScreen() {
           </View>
         </ScrollView>
       </SafeAreaView>
+    );
+  }
+
+  if (!overrideShowGateway && currentUser) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color="#4A60D6" />
+        <Text style={styles.loadingText}>Connecting to Dashboard...</Text>
+      </View>
     );
   }
 
