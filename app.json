@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "My WiFi",
-    "slug": "my-wifi",
+    "slug": "microtik-mobileapp",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
