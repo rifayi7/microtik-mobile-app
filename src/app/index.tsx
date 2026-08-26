@@ -313,7 +313,7 @@ export default function GatewayScreen() {
         </View>
 
         {/* Bottom Illustration Photo */}
-        <View style={styles.illustrationContainer}>
+        <View style={styles.illustrationContainerGateway}>
           <Image
             source={require("../../assets/images/app-bottom-photo-in-login-page.png")}
             style={styles.illustrationImage}
@@ -431,11 +431,20 @@ const styles = StyleSheet.create({
     width: "100%",
     alignItems: "center",
     justifyContent: "flex-end",
-    marginTop: 20,
+    marginTop: 10,
+    overflow: "hidden",
+  },
+  illustrationContainerGateway: {
+    marginHorizontal: -16,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    marginTop: 10,
+    overflow: "hidden",
   },
   illustrationImage: {
     width: "100%",
-    height: 190,
+    aspectRatio: 841 / 1871,
+    maxHeight: 380,
   },
 
   // Gateway Config / Router Manager Light Theme Styles
