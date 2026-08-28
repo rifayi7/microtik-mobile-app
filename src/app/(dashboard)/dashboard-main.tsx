@@ -7,10 +7,10 @@ import {
   ScrollView,
   RefreshControl,
   ActivityIndicator,
-  SafeAreaView,
   StatusBar,
   TouchableOpacity,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Bell, Wifi, Building2, DollarSign, TrendingUp, Award, Calendar } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useGateway } from "../../contexts/gateway-context";

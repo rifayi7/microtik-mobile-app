@@ -15,7 +15,6 @@ import {
     ActivityIndicator,
     Alert,
     Image,
-    SafeAreaView,
     ScrollView,
     StatusBar,
     StyleSheet,
@@ -25,6 +24,7 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useGateway } from "../contexts/gateway-context";
 import { fetchFromGateway, type MikrotikRouterConfig } from "../lib/api-client";
@@ -58,7 +58,7 @@ export default function GatewayScreen() {
           setCurrentUser(storedUser);
           if (!overrideShowGateway) {
             void connectToGateway(gatewayUrl || DEFAULT_GATEWAY_URL);
-            router.replace("/(dashboard)");
+            router.replace("/(dashboard)/dashboard-main");
           }
         }
       } catch (err) {
@@ -113,7 +113,7 @@ export default function GatewayScreen() {
           } catch (e) {
             console.warn("Auto gateway connect warning:", e);
           }
-          router.replace("/(dashboard)");
+          router.replace("/(dashboard)/dashboard-main");
         }
         return;
       }
@@ -140,7 +140,7 @@ export default function GatewayScreen() {
           } catch (e) {
             console.warn("Auto gateway connect warning:", e);
           }
-          router.replace("/(dashboard)");
+          router.replace("/(dashboard)/dashboard-main");
         }
       } else {
         Alert.alert("Error", "Invalid operator credentials or server offline");
@@ -166,7 +166,7 @@ export default function GatewayScreen() {
   // Navigate to dashboard only when they explicitly connect in this session
   useEffect(() => {
     if (isGatewaySessionConnected) {
-      router.replace("/(dashboard)");
+      router.replace("/(dashboard)/dashboard-main");
     }
   }, [isGatewaySessionConnected]);
 

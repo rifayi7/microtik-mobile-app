@@ -8,11 +8,11 @@ import {
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
-  SafeAreaView,
   StatusBar,
   Modal,
   Platform,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import {
   Search,
@@ -75,8 +75,11 @@ export default function HistoryScreen() {
     return Array.from(names);
   }, [routers]);
 
-  const loadHistory = useCallback(async (isRefresh = false) => {
-    if (!isRefresh) setLoading(true);
+  const loadHistory = useCallback(async (selectedFilter: DateFilterType = dateFilter, isRefresh = false) => {
+    if (!isRefresh) {
+      setLoading(true);
+      setLogs([]); // Clear previous logs immediately so stale data does not flash
+    }
     setError(null);
 
     try {
@@ -101,15 +104,15 @@ export default function HistoryScreen() {
 
       const todayStr = getDubaiDateStr(new Date());
 
-      if (dateFilter === "today") {
+      if (selectedFilter === "today") {
         startDate = todayStr;
         endDate = todayStr;
-      } else if (dateFilter === "yesterday") {
+      } else if (selectedFilter === "yesterday") {
         const yest = new Date(Date.now() - 86400000);
         const yestStr = getDubaiDateStr(yest);
         startDate = yestStr;
         endDate = yestStr;
-      } else if (dateFilter === "custom") {
+      } else if (selectedFilter === "custom") {
         if (customStartDate) startDate = customStartDate;
         if (customEndDate) endDate = customEndDate;
       }
@@ -145,13 +148,13 @@ export default function HistoryScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      void loadHistory(true);
-    }, [loadHistory])
+      void loadHistory(dateFilter, true);
+    }, [loadHistory, dateFilter])
   );
 
   const onRefresh = () => {
     setRefreshing(true);
-    void loadHistory(true);
+    void loadHistory(dateFilter, true);
   };
 
   const handleSearchSubmit = () => {
@@ -367,7 +370,12 @@ export default function HistoryScreen() {
           <View style={styles.datePillsRow}>
             <TouchableOpacity
               style={[styles.datePill, dateFilter === "today" && styles.datePillActive]}
-              onPress={() => setDateFilter("today")}
+              onPress={() => {
+                if (dateFilter !== "today") {
+                  setDateFilter("today");
+                  void loadHistory("today");
+                }
+              }}
             >
               <Text style={[styles.datePillText, dateFilter === "today" && styles.datePillTextActive]}>
                 Today
@@ -376,7 +384,12 @@ export default function HistoryScreen() {
 
             <TouchableOpacity
               style={[styles.datePill, dateFilter === "yesterday" && styles.datePillActive]}
-              onPress={() => setDateFilter("yesterday")}
+              onPress={() => {
+                if (dateFilter !== "yesterday") {
+                  setDateFilter("yesterday");
+                  void loadHistory("yesterday");
+                }
+              }}
             >
               <Text style={[styles.datePillText, dateFilter === "yesterday" && styles.datePillTextActive]}>
                 Yesterday
@@ -395,7 +408,12 @@ export default function HistoryScreen() {
 
             <TouchableOpacity
               style={[styles.datePill, dateFilter === "all" && styles.datePillActive]}
-              onPress={() => setDateFilter("all")}
+              onPress={() => {
+                if (dateFilter !== "all") {
+                  setDateFilter("all");
+                  void loadHistory("all");
+                }
+              }}
             >
               <Text style={[styles.datePillText, dateFilter === "all" && styles.datePillTextActive]}>
                 All
@@ -406,9 +424,9 @@ export default function HistoryScreen() {
       </View>
 
       {/* Log List View */}
-      {loading && logs.length === 0 ? (
+      {loading && !refreshing ? (
         <View style={styles.centered}>
-          <ActivityIndicator size="small" color="#4A60D6" />
+          <ActivityIndicator size="large" color="#4A60D6" />
           <Text style={styles.loadingText}>Loading transactions...</Text>
         </View>
       ) : error ? (
@@ -643,6 +661,24 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#e2e8f0",
     gap: 8,
+  },
+  filterLoadingBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#eff6ff",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
+    marginTop: 2,
+  },
+  filterLoadingText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#2563eb",
   },
   searchBox: {
     flexDirection: "row",

@@ -4,7 +4,6 @@ import {
   Text,
   View,
   TouchableOpacity,
-  SafeAreaView,
   StatusBar,
   ScrollView,
   Platform,
@@ -12,6 +11,7 @@ import {
   ActivityIndicator,
   Modal,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { LogOut, User, Shield, Info, Smartphone, CheckCircle, Power } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";

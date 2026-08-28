@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useState } from "react";
 import { useFocusEffect } from "expo-router";
 import {
   ActivityIndicator,
-  SafeAreaView,
   StatusBar,
   StyleSheet,
   Text,
@@ -11,6 +10,7 @@ import {
   ScrollView,
   RefreshControl,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Bell, ChevronDown, Building2, Ticket } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useGateway } from "../../contexts/gateway-context";
