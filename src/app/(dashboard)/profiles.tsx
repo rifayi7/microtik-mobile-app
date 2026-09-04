@@ -44,8 +44,16 @@ export default function MoreScreen() {
     setShowLogoutModal(false);
     setIsLoggingOut(true);
     try {
-      await AsyncStorage.removeItem("salesperson_name");
-      await AsyncStorage.removeItem("salesperson_display_name");
+      await AsyncStorage.multiRemove([
+        "salesperson_name",
+        "salesperson_display_name",
+        "salesperson_id",
+        "salesperson_company",
+        "salesperson_allowed_camps",
+        "auth_token",
+        "mikrotik_routers_list",
+        "mikrotik_active_router_id",
+      ]);
       await disconnectRouter();
       
       // Brief pause so transition looks clean

@@ -146,6 +146,24 @@ export default function RechargeScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      async function syncAllowedOnFocus() {
+        try {
+          const user = await AsyncStorage.getItem("salesperson_name");
+          if (user) {
+            setSalesperson(user);
+          }
+          const allowedStr = await AsyncStorage.getItem("salesperson_allowed_camps");
+          if (allowedStr) {
+            try {
+              const parsed = JSON.parse(allowedStr);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                setAllowedCamps(parsed);
+              }
+            } catch {}
+          }
+        } catch {}
+      }
+      void syncAllowedOnFocus();
       if (currentCampRouter) {
         void loadData();
       }
