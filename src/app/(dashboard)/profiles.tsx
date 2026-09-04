@@ -248,7 +248,7 @@ export default function MoreScreen() {
             {/* Target Camp Selector */}
             {routers.length > 0 && (
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Target Camp / Router</Text>
+                <Text style={styles.inputLabel}>Select Camp</Text>
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
