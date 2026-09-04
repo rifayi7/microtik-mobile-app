@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from "react";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import {
   StyleSheet,
   Text,
@@ -43,6 +43,7 @@ interface SalesLog {
 type DateFilterType = "today" | "yesterday" | "custom" | "all";
 
 export default function HistoryScreen() {
+  const router = useRouter();
   const { gatewayUrl, routers } = useGateway();
   const [logs, setLogs] = useState<SalesLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,6 +73,12 @@ export default function HistoryScreen() {
     useCallback(() => {
       async function initAllowed() {
         try {
+          const user = await AsyncStorage.getItem("salesperson_name");
+          if (!user || user === "Unknown") {
+            router.replace("/");
+            return;
+          }
+          setSalesperson(user);
           const allowedStr = await AsyncStorage.getItem("salesperson_allowed_camps");
           if (allowedStr) {
             const parsed = JSON.parse(allowedStr);
@@ -79,10 +86,12 @@ export default function HistoryScreen() {
               setAllowedCamps(parsed);
             }
           }
-        } catch {}
+        } catch {
+          router.replace("/");
+        }
       }
       void initAllowed();
-    }, [])
+    }, [router])
   );
 
   // Extract distinct camp names from registered routers, allowedCamps, or historical transaction logs

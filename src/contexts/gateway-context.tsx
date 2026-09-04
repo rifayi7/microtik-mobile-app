@@ -119,8 +119,10 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
         // If savedGateway is present and not an old production URL when DEFAULT_GATEWAY_URL is localhost, respect it
         if (savedGateway && savedGateway.trim() !== "") {
           const cleanSaved = savedGateway.replace(/\/+$/, "");
-          // If DEFAULT_GATEWAY_URL is explicitly set to localhost, prefer localhost
-          if (DEFAULT_GATEWAY_URL.includes("localhost") && cleanSaved.includes("vercel.app")) {
+          if (
+            (DEFAULT_GATEWAY_URL.includes("192.168.") || DEFAULT_GATEWAY_URL.includes("localhost")) &&
+            (cleanSaved.includes("vercel.app") || cleanSaved.includes("localhost"))
+          ) {
             normalizedUrl = DEFAULT_GATEWAY_URL;
             await AsyncStorage.setItem(STORAGE_GATEWAY_URL, DEFAULT_GATEWAY_URL);
           } else {
@@ -251,7 +253,13 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
 
   const disconnectRouter = async () => {
     setActiveRouterState(null);
-    await AsyncStorage.removeItem(STORAGE_ACTIVE_ROUTER_ID);
+    setRoutersState([]);
+    try {
+      await AsyncStorage.multiRemove([
+        STORAGE_ACTIVE_ROUTER_ID,
+        STORAGE_ROUTERS,
+      ]);
+    } catch {}
   };
 
   const connectToGateway = async (
@@ -291,7 +299,16 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      const response = await fetch(cleanUrl + "/api/mikrotik/routers?verified=true", {
+      const storedName = await AsyncStorage.getItem("salesperson_name");
+      const storedUserId = await AsyncStorage.getItem("salesperson_id");
+      let routersPath = cleanUrl + "/api/mikrotik/routers?verified=true";
+      if (storedUserId) {
+        routersPath += `&salesPersonId=${encodeURIComponent(storedUserId)}`;
+      } else if (storedName && storedName !== "Unknown") {
+        routersPath += `&salesperson=${encodeURIComponent(storedName)}`;
+      }
+
+      const response = await fetch(routersPath, {
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),

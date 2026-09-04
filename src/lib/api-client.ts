@@ -24,6 +24,7 @@ export async function fetchFromGateway<T>(
   options: {
     method?: string;
     body?: any;
+    timeoutMs?: number;
   } = {}
 ): Promise<T> {
   const normalizedBase = gatewayUrl.trim().replace(/\/$/, "");
@@ -37,6 +38,10 @@ export async function fetchFromGateway<T>(
     requestBody.routerId = routerConfig.id;
   }
 
+  const timeoutMs = options.timeoutMs ?? 8000;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
     const token = await AsyncStorage.getItem("auth_token");
 
@@ -46,6 +51,7 @@ export async function fetchFromGateway<T>(
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
+      signal: controller.signal,
     };
 
     if (fetchOptions.method !== "GET" && fetchOptions.method !== "HEAD") {
@@ -53,6 +59,7 @@ export async function fetchFromGateway<T>(
     }
 
     const response = await fetch(fullUrl, fetchOptions);
+    clearTimeout(timer);
 
     const text = await response.text();
     let payload: any = {};
@@ -67,7 +74,15 @@ export async function fetchFromGateway<T>(
     }
 
     return payload as T;
-  } catch (error) {
-    throw new Error(error instanceof Error ? error.message : "Network request failed");
+  } catch (error: any) {
+    clearTimeout(timer);
+    if (error?.name === "AbortError" || controller.signal.aborted) {
+      throw new Error("Cannot reach backend server. Connection timed out after 8 seconds.");
+    }
+    const msg = error instanceof Error ? error.message : String(error);
+    if (msg.includes("Network request failed") || msg.includes("Failed to fetch") || msg.includes("ECONNREFUSED")) {
+      throw new Error("Cannot reach backend server. Please check your network connection or verify that the server is running.");
+    }
+    throw new Error(msg);
   }
 }

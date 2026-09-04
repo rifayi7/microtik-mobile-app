@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   StyleSheet,
   Text,
@@ -30,7 +30,7 @@ import {
   Check,
 } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { useGateway } from "../../contexts/gateway-context";
 import { ConfirmModal } from "../../components/confirm-modal";
 import { fetchFromGateway } from "../../lib/api-client";
@@ -40,6 +40,7 @@ export default function MoreScreen() {
   const { gatewayUrl, activeRouter, routers, disconnectRouter } = useGateway();
   const [salesperson, setSalesperson] = useState("Unknown");
   const [displayName, setDisplayName] = useState("Salesperson");
+  const [company, setCompany] = useState<string | null>(null);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
@@ -51,19 +52,27 @@ export default function MoreScreen() {
   const [resetError, setResetError] = useState<string | null>(null);
   const [resetSuccess, setResetSuccess] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function loadUser() {
-      try {
-        const user = await AsyncStorage.getItem("salesperson_name");
-        const dName = await AsyncStorage.getItem("salesperson_display_name");
-        if (user) setSalesperson(user);
-        if (dName) setDisplayName(dName);
-      } catch (e) {
-        console.warn("Failed to load user info:", e);
+  useFocusEffect(
+    useCallback(() => {
+      async function loadUser() {
+        try {
+          const name = await AsyncStorage.getItem("salesperson_name");
+          if (!name || name === "Unknown") {
+            router.replace("/");
+            return;
+          }
+          const dName = await AsyncStorage.getItem("salesperson_display_name");
+          const comp = await AsyncStorage.getItem("salesperson_company");
+          setSalesperson(name);
+          if (dName) setDisplayName(dName);
+          if (comp) setCompany(comp);
+        } catch (e) {
+          router.replace("/");
+        }
       }
-    }
-    void loadUser();
-  }, []);
+      void loadUser();
+    }, [router])
+  );
 
   const handleOpenResetModal = () => {
     setResetVoucherCode("");
@@ -130,8 +139,8 @@ export default function MoreScreen() {
 
   const handleConfirmLogout = async () => {
     setShowLogoutModal(false);
-    setIsLoggingOut(true);
     try {
+      // 1. Instantly wipe all local operator session keys & JWT tokens
       await AsyncStorage.multiRemove([
         "salesperson_name",
         "salesperson_display_name",
@@ -142,19 +151,18 @@ export default function MoreScreen() {
         "mikrotik_routers_list",
         "mikrotik_active_router_id",
       ]);
+
+      // 2. Disconnect local router state
       await disconnectRouter();
-      
-      // Brief pause so transition looks clean
-      await new Promise((resolve) => setTimeout(resolve, 400));
-      
+
+      // 3. Navigate directly to login screen
       if (Platform.OS === "web") {
         window.location.href = "/";
       } else {
         router.replace("/");
       }
     } catch (e) {
-      setIsLoggingOut(false);
-      Alert.alert("Error", "Failed to logout. Please try again.");
+      router.replace("/");
     }
   };
 
@@ -169,20 +177,20 @@ export default function MoreScreen() {
             <User size={32} color="#4A60D6" />
           </View>
           <View style={styles.accountInfo}>
-            <Text style={styles.salespersonName}>{displayName}</Text>
-            <Text style={styles.usernameSubText}>@{salesperson}</Text>
-            <View style={styles.roleBadge}>
-              <Shield size={12} color="#16a34a" />
-              <Text style={styles.roleText}>Active Salesperson</Text>
-            </View>
+            <Text style={styles.salespersonName}>{displayName || salesperson}</Text>
+            {company ? (
+              <Text style={styles.usernameSubText}>{company}</Text>
+            ) : (displayName || "").toLowerCase() !== (salesperson || "").toLowerCase() ? (
+              <Text style={styles.usernameSubText}>@{salesperson}</Text>
+            ) : null}
           </View>
         </View>
 
-        {/* Menu Section */}
+        {/* Voucher Tools Section */}
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionHeader}>Account & Session</Text>
+          <Text style={styles.sectionHeader}>Voucher Management</Text>
 
-          {/* Reset User Session Row (Before Logout) */}
+          {/* Reset User Session */}
           <TouchableOpacity
             style={styles.menuRow}
             onPress={handleOpenResetModal}
@@ -194,23 +202,6 @@ export default function MoreScreen() {
             <View style={styles.menuTextWrap}>
               <Text style={[styles.menuTitle, { color: "#ea580c" }]}>Reset User Session</Text>
               <Text style={styles.menuSubtitle}>Disconnect active Wi-Fi session for a voucher</Text>
-            </View>
-          </TouchableOpacity>
-
-          <View style={styles.divider} />
-
-          {/* Logout Button Row */}
-          <TouchableOpacity
-            style={styles.menuRow}
-            onPress={() => setShowLogoutModal(true)}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.iconWrap, { backgroundColor: "#fee2e2" }]}>
-              <LogOut size={18} color="#ef4444" />
-            </View>
-            <View style={styles.menuTextWrap}>
-              <Text style={[styles.menuTitle, { color: "#ef4444" }]}>Logout</Text>
-              <Text style={styles.menuSubtitle}>Sign out and switch salesperson account</Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -236,6 +227,16 @@ export default function MoreScreen() {
             </View>
           </View>
         </View>
+
+        {/* Clean Logout Button */}
+        <TouchableOpacity
+          style={styles.logoutBtn}
+          onPress={() => setShowLogoutModal(true)}
+          activeOpacity={0.8}
+        >
+          <LogOut size={18} color="#EF4444" />
+          <Text style={styles.logoutBtnText}>Log Out</Text>
+        </TouchableOpacity>
       </ScrollView>
 
       {/* Reset Voucher Modal */}
@@ -419,16 +420,6 @@ export default function MoreScreen() {
         onConfirm={handleConfirmLogout}
         onCancel={() => setShowLogoutModal(false)}
       />
-
-      {/* Loading Modal on Logout */}
-      <Modal visible={isLoggingOut} transparent animationType="fade">
-        <View style={styles.loadingOverlay}>
-          <View style={styles.loadingModalCard}>
-            <ActivityIndicator size="large" color="#4A60D6" />
-            <Text style={styles.loggingOutText}>Logging out...</Text>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -773,5 +764,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
     color: "#ffffff",
+  },
+  logoutBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FEF2F2",
+    borderRadius: 12,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    gap: 8,
+    marginTop: 4,
+    marginBottom: 24,
+  },
+  logoutBtnText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#DC2626",
   },
 });

@@ -8,7 +8,7 @@ import {
   Phone,
 } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import {
   ActivityIndicator,
   Alert,
@@ -38,6 +38,7 @@ interface RechargeData {
 }
 
 export default function RechargeScreen() {
+  const router = useRouter();
   const { gatewayUrl, activeRouter, routers, connectRouter } = useGateway();
   const [data, setData] = useState<RechargeData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -60,8 +61,8 @@ export default function RechargeScreen() {
     mobile: string;
     validity: number;
     timestamp: string;
-    camp: string;
-    paymentType: string;
+    camp?: string | null;
+    paymentType?: string;
   } | null>(null);
 
   const [customerHistory, setCustomerHistory] = useState<{
@@ -74,15 +75,17 @@ export default function RechargeScreen() {
   const [loadingHistory, setLoadingHistory] = useState(false);
 
   const [allowedCamps, setAllowedCamps] = useState<string[]>([]);
-  const [selectedCamp, setSelectedCamp] = useState("");
+  const [selectedCamp, setSelectedCamp] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       async function refreshSalesperson() {
         const user = await AsyncStorage.getItem("salesperson_name");
-        if (user) {
-          setSalesperson(user);
+        if (!user || user === "Unknown") {
+          router.replace("/");
+          return;
         }
+        setSalesperson(user);
         const allowedStr = await AsyncStorage.getItem("salesperson_allowed_camps");
         if (allowedStr) {
           try {
@@ -94,7 +97,7 @@ export default function RechargeScreen() {
         }
       }
       void refreshSalesperson();
-    }, [])
+    }, [router])
   );
 
   const camps = useMemo(() => {

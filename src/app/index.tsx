@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import {
     Check,
     ChevronRight,
@@ -10,7 +10,7 @@ import {
     Wifi,
     X
 } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -52,35 +52,46 @@ export default function GatewayScreen() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [checkingLogin, setCheckingLogin] = useState(true);
 
-  useEffect(() => {
-    async function checkLogin() {
-      try {
-        const storedUser = await AsyncStorage.getItem("salesperson_name");
-        const token = await AsyncStorage.getItem("auth_token");
-        const allowedStr = await AsyncStorage.getItem("salesperson_allowed_camps");
-        let allowedCamps: string[] = [];
-        if (allowedStr) {
-          try {
-            const parsed = JSON.parse(allowedStr);
-            if (Array.isArray(parsed)) allowedCamps = parsed;
-          } catch {}
-        }
+  useFocusEffect(
+    useCallback(() => {
+      let isMounted = true;
+      async function checkLogin() {
+        try {
+          const storedUser = await AsyncStorage.getItem("salesperson_name");
+          if (!isMounted) return;
 
-        if (storedUser) {
-          setCurrentUser(storedUser);
-          if (!overrideShowGateway) {
-            void connectToGateway(gatewayUrl || DEFAULT_GATEWAY_URL, token || undefined, allowedCamps);
-            router.replace("/(dashboard)/dashboard-main");
+          if (storedUser && storedUser !== "Unknown") {
+            const token = await AsyncStorage.getItem("auth_token");
+            const allowedStr = await AsyncStorage.getItem("salesperson_allowed_camps");
+            let allowedCamps: string[] = [];
+            if (allowedStr) {
+              try {
+                const parsed = JSON.parse(allowedStr);
+                if (Array.isArray(parsed)) allowedCamps = parsed;
+              } catch {}
+            }
+            setCurrentUser(storedUser);
+            if (!overrideShowGateway) {
+              void connectToGateway(gatewayUrl || DEFAULT_GATEWAY_URL, token || undefined, allowedCamps);
+              router.replace("/(dashboard)/dashboard-main");
+            }
+          } else {
+            setCurrentUser(null);
+            setLoginPassword("");
           }
+        } catch (err) {
+          console.error("Failed to load operator login state", err);
+          if (isMounted) setCurrentUser(null);
+        } finally {
+          if (isMounted) setCheckingLogin(false);
         }
-      } catch (err) {
-        console.error("Failed to load operator login state", err);
-      } finally {
-        setCheckingLogin(false);
       }
-    }
-    void checkLogin();
-  }, [overrideShowGateway]);
+      void checkLogin();
+      return () => {
+        isMounted = false;
+      };
+    }, [overrideShowGateway, gatewayUrl, connectToGateway])
+  );
 
   const handleOperatorLogin = async () => {
     const user = loginUsername.trim();
@@ -158,35 +169,10 @@ export default function GatewayScreen() {
       const errMsg = result.error || "Invalid operator credentials. Please check your username and password.";
       setLoginError(errMsg);
       Alert.alert("Login Failed", errMsg);
-    } catch {
-      // 2. Offline fallback check
-      if (
-        (user === "Fasil@2020" && pass === "1234") ||
-        (user === "Rifai" && pass === "3421")
-      ) {
-        const dName = user === "Fasil@2020" ? "Fasil" : "Rifai";
-        const userId = user === "Fasil@2020" ? "7" : "8";
-        await AsyncStorage.setItem("salesperson_id", userId);
-        await AsyncStorage.setItem("salesperson_name", user);
-        await AsyncStorage.setItem("salesperson_display_name", dName);
-        setCurrentUser(dName);
-        setLoginUsername("");
-        setLoginPassword("");
-        setLoginError(null);
-
-        if (!overrideShowGateway) {
-          try {
-            await connectToGateway(gatewayUrl || DEFAULT_GATEWAY_URL);
-          } catch (e) {
-            console.warn("Auto gateway connect warning:", e);
-          }
-          router.replace("/(dashboard)/dashboard-main");
-        }
-      } else {
-        const errMsg = "Invalid operator credentials. Please check your username and password.";
-        setLoginError(errMsg);
-        Alert.alert("Login Failed", errMsg);
-      }
+    } catch (err: any) {
+      const errorMsg = err instanceof Error ? err.message : "Cannot reach backend server. Please check connection.";
+      setLoginError(errorMsg);
+      Alert.alert("Connection Error", errorMsg);
     } finally {
       setIsLoggingIn(false);
     }

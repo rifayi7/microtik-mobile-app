@@ -9,6 +9,7 @@ import {
   MoreHorizontal,
 } from "lucide-react-native";
 import { Platform, StyleSheet, Text, Pressable } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useGateway } from "../../contexts/gateway-context";
 import { ConfirmModal } from "../../components/confirm-modal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -19,13 +20,32 @@ export default function DashboardLayout() {
   const [showDisconnectModal, setShowDisconnectModal] = useState(false);
   const insets = useSafeAreaInsets();
 
-  // Reactively navigate back to router selection when disconnected.
+  // Auth guard: Ensure operator is logged in before rendering dashboard
+  useEffect(() => {
+    async function verifyAuth() {
+      try {
+        const storedUser = await AsyncStorage.getItem("salesperson_name");
+        if (!storedUser || storedUser === "Unknown") {
+          if (Platform.OS === "web") {
+            window.location.href = "/";
+          } else {
+            router.replace("/");
+          }
+        }
+      } catch {
+        router.replace("/");
+      }
+    }
+    void verifyAuth();
+  }, []);
+
+  // Reactively navigate back to login when disconnected.
   useEffect(() => {
     if (!isConnected) {
       if (Platform.OS === "web") {
         window.location.href = "/";
       } else {
-        router.push("/");
+        router.replace("/");
       }
     }
   }, [isConnected]);
@@ -35,7 +55,7 @@ export default function DashboardLayout() {
     if (Platform.OS === "web") {
       window.location.href = "/";
     } else {
-      router.push("/");
+      router.replace("/");
     }
   };
 
@@ -61,6 +81,7 @@ export default function DashboardLayout() {
   return (
     <>
       <Tabs
+        initialRouteName="dashboard-main"
         screenOptions={{
           headerShown: false,
           tabBarStyle: {
@@ -133,12 +154,6 @@ export default function DashboardLayout() {
           options={{
             title: "More",
             tabBarIcon: ({ color }) => <MoreHorizontal size={22} color={color} />,
-          }}
-        />
-        <Tabs.Screen
-          name="index"
-          options={{
-            href: null, // Hide index redirect from tab bar
           }}
         />
       </Tabs>

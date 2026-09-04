@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import {
   ActivityIndicator,
   StatusBar,
@@ -22,6 +22,7 @@ interface PlanCount {
 }
 
 export default function CouponScreen() {
+  const router = useRouter();
   const { gatewayUrl, routers } = useGateway();
   const [salesperson, setSalesperson] = useState("Salesperson");
   const [campPlans, setCampPlans] = useState<Record<string, PlanCount[]>>({});
@@ -35,8 +36,12 @@ export default function CouponScreen() {
     useCallback(() => {
       async function loadUser() {
         try {
-          const dName = await AsyncStorage.getItem("salesperson_display_name");
           const uName = await AsyncStorage.getItem("salesperson_name");
+          if (!uName || uName === "Unknown") {
+            router.replace("/");
+            return;
+          }
+          const dName = await AsyncStorage.getItem("salesperson_display_name");
           setSalesperson(dName || uName || "Salesperson");
 
           const allowedStr = await AsyncStorage.getItem("salesperson_allowed_camps");
