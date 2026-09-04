@@ -44,13 +44,19 @@ export default function DashboardLayout() {
     await doDisconnect();
   };
 
-  // Ensure ample bottom clearance so Web, Android gesture navigation, and iOS home indicator
-  // never overlap or clip tab bar icons and labels
-  const bottomPadding = insets.bottom > 0
-    ? insets.bottom + 6
-    : (Platform.OS === "android" ? 14 : 10);
+  // Ensure robust bottom clearance across all mobile device types:
+  // - Devices with native gesture bars / home indicator (iOS >= iPhone X, Android 10+ gesture bar)
+  // - Devices with 3-button navigation bars or zero insets
+  // - Web iframe/browser viewport
+  const baseContentHeight = 52;
+  const systemBottomInset = Math.max(insets.bottom, 0);
 
-  const tabHeight = 62 + bottomPadding;
+  // When system has gesture bar or 3-button inset, respect it with padding; otherwise provide a safety minimum
+  const extraBottomPadding = systemBottomInset > 0
+    ? systemBottomInset + (Platform.OS === "android" ? 6 : 4)
+    : (Platform.OS === "android" ? 12 : 8);
+
+  const totalTabHeight = baseContentHeight + extraBottomPadding;
 
   return (
     <>
@@ -61,14 +67,14 @@ export default function DashboardLayout() {
             backgroundColor: "#ffffff",
             borderTopWidth: 1,
             borderTopColor: "#e2e8f0",
-            height: tabHeight,
-            paddingBottom: bottomPadding,
-            paddingTop: 6,
-            elevation: 8,
+            height: totalTabHeight,
+            paddingBottom: extraBottomPadding,
+            paddingTop: 4,
+            elevation: 10,
             shadowColor: "#000",
             shadowOffset: { width: 0, height: -2 },
-            shadowOpacity: 0.05,
-            shadowRadius: 3,
+            shadowOpacity: 0.06,
+            shadowRadius: 4,
           },
           tabBarItemStyle: {
             justifyContent: "center",
@@ -77,12 +83,21 @@ export default function DashboardLayout() {
           },
           tabBarActiveTintColor: "#4A60D6",
           tabBarInactiveTintColor: "#94a3b8",
-          tabBarLabelStyle: {
-            fontSize: 10.5,
-            fontWeight: "600",
-            marginTop: 2,
-            paddingBottom: 0,
-          },
+          tabBarLabel: ({ focused, color, children }) => (
+            <Text
+              style={{
+                fontSize: 10.5,
+                fontWeight: focused ? "700" : "500",
+                color,
+                marginTop: 2,
+                textAlign: "center",
+              }}
+              numberOfLines={1}
+              allowFontScaling={false}
+            >
+              {children}
+            </Text>
+          ),
         }}
       >
         <Tabs.Screen
