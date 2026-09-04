@@ -117,10 +117,7 @@ export default function MoreScreen() {
       );
 
       if (response.success) {
-        setResetSuccess(
-          response.message ||
-            `Active session for voucher "${trimmedCode}" has been disconnected successfully. The voucher remains valid.`
-        );
+        setResetSuccess("Reset successfully.");
       } else {
         setResetError(
           response.error || `Could not disconnect session for voucher "${trimmedCode}".`
@@ -174,7 +171,7 @@ export default function MoreScreen() {
         {/* User Account Card */}
         <View style={styles.accountCard}>
           <View style={styles.avatarCircle}>
-            <User size={32} color="#4A60D6" />
+            <User size={32} color="#DC2626" />
           </View>
           <View style={styles.accountInfo}>
             <Text style={styles.salespersonName}>{displayName || salesperson}</Text>
@@ -194,11 +191,11 @@ export default function MoreScreen() {
             onPress={handleOpenResetModal}
             activeOpacity={0.7}
           >
-            <View style={[styles.iconWrap, { backgroundColor: "#fff7ed" }]}>
-              <RotateCcw size={18} color="#ea580c" />
+            <View style={[styles.iconWrap, { backgroundColor: "#FEF2F2" }]}>
+              <RotateCcw size={18} color="#DC2626" />
             </View>
             <View style={styles.menuTextWrap}>
-              <Text style={[styles.menuTitle, { color: "#ea580c" }]}>Reset Voucher Code</Text>
+              <Text style={[styles.menuTitle, { color: "#DC2626" }]}>Reset Voucher Code</Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -209,7 +206,7 @@ export default function MoreScreen() {
           onPress={() => setShowLogoutModal(true)}
           activeOpacity={0.8}
         >
-          <LogOut size={18} color="#EF4444" />
+          <LogOut size={18} color="#DC2626" />
           <Text style={styles.logoutBtnText}>Log Out</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -231,7 +228,7 @@ export default function MoreScreen() {
             {/* Header */}
             <View style={styles.resetModalHeader}>
               <View style={styles.resetHeaderIconWrap}>
-                <RotateCcw size={20} color="#ea580c" />
+                <RotateCcw size={20} color="#DC2626" />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.resetModalTitle}>Reset</Text>
@@ -273,7 +270,7 @@ export default function MoreScreen() {
                         >
                           {campName}
                         </Text>
-                        {isSelected && <Check size={13} color="#ea580c" />}
+                        {isSelected && <Check size={13} color="#DC2626" />}
                       </TouchableOpacity>
                     );
                   })}
@@ -393,11 +390,11 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: "#eef2ff",
+    backgroundColor: "#FEF2F2",
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#c7d2fe",
+    borderColor: "#FECACA",
   },
   accountInfo: {
     flex: 1,
@@ -435,6 +432,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#e2e8f0",
     gap: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
   sectionHeader: {
     fontSize: 12,
@@ -562,7 +564,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 12,
-    backgroundColor: "#fff7ed",
+    backgroundColor: "#FEF2F2",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -580,7 +582,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 10,
     borderLeftWidth: 3,
-    borderLeftColor: "#ea580c",
+    borderLeftColor: "#DC2626",
   },
   noticeText: {
     fontSize: 12.5,
@@ -612,8 +614,8 @@ const styles = StyleSheet.create({
     borderColor: "#e2e8f0",
   },
   campChipSelected: {
-    backgroundColor: "#fff7ed",
-    borderColor: "#ea580c",
+    backgroundColor: "#FEF2F2",
+    borderColor: "#FECACA",
   },
   campChipText: {
     fontSize: 13,
@@ -621,7 +623,7 @@ const styles = StyleSheet.create({
     color: "#475569",
   },
   campChipTextSelected: {
-    color: "#ea580c",
+    color: "#DC2626",
     fontWeight: "700",
   },
   textInput: {
@@ -691,14 +693,19 @@ const styles = StyleSheet.create({
     flex: 1.3,
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: "#ea580c",
+    backgroundColor: "#DC2626",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
+    shadowColor: "#DC2626",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
   },
   resetSubmitDisabled: {
-    backgroundColor: "#fdba74",
+    backgroundColor: "#FCA5A5",
     opacity: 0.7,
   },
   resetSubmitText: {

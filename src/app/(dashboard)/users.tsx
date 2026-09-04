@@ -120,6 +120,7 @@ export default function CouponScreen() {
         </View>
         <TouchableOpacity style={styles.bellButton}>
           <Bell size={24} color="#0f172a" />
+          <View style={styles.bellBadge} />
         </TouchableOpacity>
       </View>
 
@@ -129,8 +130,8 @@ export default function CouponScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#4A60D6"
-            colors={["#4A60D6"]}
+            tintColor="#DC2626"
+            colors={["#DC2626"]}
           />
         }
       >
@@ -162,7 +163,7 @@ export default function CouponScreen() {
                 >
                   <View style={styles.campHeaderLeft}>
                     <View style={styles.campIconContainer}>
-                      <Building2 size={18} color="#2e4396" />
+                      <Building2 size={18} color="#DC2626" />
                     </View>
                     <View>
                       <Text style={styles.campNameText}>{campName}</Text>
@@ -185,7 +186,7 @@ export default function CouponScreen() {
                   <View style={styles.campAccordionContent}>
                     {isLoadingPlans ? (
                       <View style={styles.centeredRow}>
-                        <ActivityIndicator size="small" color="#4A60D6" />
+                        <ActivityIndicator size="small" color="#DC2626" />
                         <Text style={styles.loadingCountsText}>Loading available counts...</Text>
                       </View>
                     ) : plansList.length === 0 ? (
@@ -201,12 +202,12 @@ export default function CouponScreen() {
                             style={[
                               styles.planCountCard,
                               plan.days === 30
-                                ? styles.cardBlue
+                                ? styles.cardRed
                                 : plan.days === 15
-                                ? styles.cardGreen
+                                ? styles.cardDark
                                 : plan.days === 10
-                                ? styles.cardPurple
-                                : styles.cardOrange,
+                                ? styles.cardLightRed
+                                : styles.cardGray,
                             ]}
                           >
                             <Text style={styles.planDurationLabel}>{plan.days}-Days Plan</Text>
@@ -250,8 +251,8 @@ const styles = StyleSheet.create({
   },
   welcomeTitle: {
     fontSize: 20,
-    fontWeight: "600",
-    color: "#2e4396",
+    fontWeight: "700",
+    color: "#0F172A",
   },
   welcomeSub: {
     fontSize: 15,
@@ -267,11 +268,21 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
+    position: "relative",
+  },
+  bellBadge: {
+    position: "absolute",
+    top: 6,
+    right: 8,
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: "#EF4444",
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: "500",
-    color: "#334155",
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#0F172A",
     marginTop: 20,
     marginBottom: 16,
   },
@@ -282,7 +293,7 @@ const styles = StyleSheet.create({
     borderColor: "#e2e8f0",
     marginBottom: 12,
     overflow: "hidden",
-    shadowColor: "#2e4396",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 4,
@@ -303,18 +314,18 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 8,
-    backgroundColor: "#eff6ff",
+    backgroundColor: "#FEF2F2",
     justifyContent: "center",
     alignItems: "center",
   },
   campNameText: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#2e4396",
+    color: "#0F172A",
   },
   campSubCountText: {
     fontSize: 11,
-    color: "#16a34a",
+    color: "#DC2626",
     fontWeight: "600",
     marginTop: 1,
   },
@@ -364,21 +375,21 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 1,
   },
-  cardBlue: {
-    backgroundColor: "#eff6ff",
-    borderColor: "#bfdbfe",
+  cardRed: {
+    backgroundColor: "#FEF2F2",
+    borderColor: "#FECACA",
   },
-  cardGreen: {
-    backgroundColor: "#ecfdf5",
-    borderColor: "#a7f3d0",
+  cardDark: {
+    backgroundColor: "#18181B",
+    borderColor: "#27272A",
   },
-  cardPurple: {
-    backgroundColor: "#f5f3ff",
-    borderColor: "#ddd6fe",
+  cardLightRed: {
+    backgroundColor: "#FFF1F2",
+    borderColor: "#FFE4E6",
   },
-  cardOrange: {
-    backgroundColor: "#fff7ed",
-    borderColor: "#fed7aa",
+  cardGray: {
+    backgroundColor: "#F8FAFC",
+    borderColor: "#E2E8F0",
   },
   planDurationLabel: {
     fontSize: 12,
@@ -389,7 +400,7 @@ const styles = StyleSheet.create({
   planNumberCount: {
     fontSize: 22,
     fontWeight: "900",
-    color: "#0f172a",
+    color: "#DC2626",
   },
   planAvailableSubtext: {
     fontSize: 11,

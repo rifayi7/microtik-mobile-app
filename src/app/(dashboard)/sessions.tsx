@@ -396,7 +396,7 @@ export default function HistoryScreen() {
             onPress={() => setCampDropdownOpen(true)}
             activeOpacity={0.8}
           >
-            <Building2 size={12} color="#0284c7" />
+            <Building2 size={12} color="#DC2626" />
             <Text style={styles.campSelectText} numberOfLines={1}>
               {allowedCamps.length === 1
                 ? allowedCamps[0]
@@ -467,7 +467,7 @@ export default function HistoryScreen() {
       {/* Log List View */}
       {loading && !refreshing ? (
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#4A60D6" />
+          <ActivityIndicator size="large" color="#DC2626" />
           <Text style={styles.loadingText}>Loading transactions...</Text>
         </View>
       ) : error ? (
@@ -524,7 +524,7 @@ export default function HistoryScreen() {
                 }}
               >
                 <View style={styles.dropdownItemLeft}>
-                  <Building2 size={16} color={selectedCampFilter === "all" ? "#4A60D6" : "#64748b"} />
+                  <Building2 size={16} color={selectedCampFilter === "all" ? "#DC2626" : "#64748b"} />
                   <Text
                     style={[
                       styles.dropdownItemText,
@@ -534,7 +534,7 @@ export default function HistoryScreen() {
                     All Camps
                   </Text>
                 </View>
-                {selectedCampFilter === "all" && <Check size={16} color="#4A60D6" />}
+                {selectedCampFilter === "all" && <Check size={16} color="#DC2626" />}
               </TouchableOpacity>
             )}
 
@@ -551,7 +551,7 @@ export default function HistoryScreen() {
                 }}
               >
                 <View style={styles.dropdownItemLeft}>
-                  <Building2 size={16} color={(selectedCampFilter === camp || (allowedCamps.length === 1 && selectedCampFilter === "all" && campList[0] === camp)) ? "#4A60D6" : "#64748b"} />
+                  <Building2 size={16} color={(selectedCampFilter === camp || (allowedCamps.length === 1 && selectedCampFilter === "all" && campList[0] === camp)) ? "#DC2626" : "#64748b"} />
                   <Text
                     style={[
                       styles.dropdownItemText,
@@ -561,7 +561,7 @@ export default function HistoryScreen() {
                     {camp}
                   </Text>
                 </View>
-                {(selectedCampFilter === camp || (allowedCamps.length === 1 && selectedCampFilter === "all" && campList[0] === camp)) && <Check size={16} color="#4A60D6" />}
+                {(selectedCampFilter === camp || (allowedCamps.length === 1 && selectedCampFilter === "all" && campList[0] === camp)) && <Check size={16} color="#DC2626" />}
               </TouchableOpacity>
             ))}
           </View>
@@ -585,7 +585,7 @@ export default function HistoryScreen() {
               <TouchableOpacity
                 style={[
                   styles.datePickerTrigger,
-                  calendarMode === "start" && { borderColor: "#4A60D6", backgroundColor: "#eff6ff" }
+                  calendarMode === "start" && { borderColor: "#DC2626", backgroundColor: "#FEF2F2" }
                 ]}
                 onPress={() => {
                   setViewYear(startDateObj.getFullYear());
@@ -593,7 +593,7 @@ export default function HistoryScreen() {
                   setCalendarMode(calendarMode === "start" ? null : "start");
                 }}
               >
-                <Calendar size={16} color="#4A60D6" />
+                <Calendar size={16} color="#DC2626" />
                 <Text style={styles.datePickerTriggerText}>
                   {customStartDate || formatDateYMD(startDateObj)}
                 </Text>
@@ -607,7 +607,7 @@ export default function HistoryScreen() {
               <TouchableOpacity
                 style={[
                   styles.datePickerTrigger,
-                  calendarMode === "end" && { borderColor: "#4A60D6", backgroundColor: "#eff6ff" }
+                  calendarMode === "end" && { borderColor: "#DC2626", backgroundColor: "#FEF2F2" }
                 ]}
                 onPress={() => {
                   setViewYear(endDateObj.getFullYear());
@@ -615,7 +615,7 @@ export default function HistoryScreen() {
                   setCalendarMode(calendarMode === "end" ? null : "end");
                 }}
               >
-                <Calendar size={16} color="#4A60D6" />
+                <Calendar size={16} color="#DC2626" />
                 <Text style={styles.datePickerTriggerText}>
                   {customEndDate || formatDateYMD(endDateObj)}
                 </Text>
@@ -741,10 +741,15 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
   },
   searchButton: {
-    backgroundColor: "#4A60D6",
+    backgroundColor: "#DC2626",
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 6,
+    shadowColor: "#DC2626",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 2,
   },
   searchButtonText: {
     color: "#ffffff",
@@ -761,9 +766,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    backgroundColor: "#f0f9ff",
+    backgroundColor: "#FEF2F2",
     borderWidth: 1,
-    borderColor: "#bae6fd",
+    borderColor: "#FECACA",
     paddingHorizontal: 8,
     paddingVertical: 4.5,
     borderRadius: 8,
@@ -772,7 +777,7 @@ const styles = StyleSheet.create({
   campSelectText: {
     fontSize: 11,
     fontWeight: "700",
-    color: "#0369a1",
+    color: "#DC2626",
     flexShrink: 1,
   },
   datePillsRow: {
@@ -792,8 +797,8 @@ const styles = StyleSheet.create({
     borderColor: "#e2e8f0",
   },
   datePillActive: {
-    backgroundColor: "#4A60D6",
-    borderColor: "#4A60D6",
+    backgroundColor: "#DC2626",
+    borderColor: "#DC2626",
   },
   datePillText: {
     fontSize: 10.5,
@@ -817,6 +822,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 9,
     gap: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
   },
   cardTopRow: {
     flexDirection: "row",
@@ -841,13 +851,13 @@ const styles = StyleSheet.create({
     backgroundColor: "#16a34a",
   },
   priceBadge: {
-    backgroundColor: "#ecfdf5",
+    backgroundColor: "#FEF2F2",
     paddingHorizontal: 7,
     paddingVertical: 2.5,
     borderRadius: 5,
   },
   priceText: {
-    color: "#059669",
+    color: "#DC2626",
     fontSize: 11.5,
     fontWeight: "700",
   },
@@ -860,7 +870,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
-    backgroundColor: "#e0f2fe",
+    backgroundColor: "#FEF2F2",
     paddingHorizontal: 6,
     paddingVertical: 1.5,
     borderRadius: 4,
@@ -868,21 +878,23 @@ const styles = StyleSheet.create({
   campBadgeText: {
     fontSize: 10.5,
     fontWeight: "700",
-    color: "#0284c7",
+    color: "#DC2626",
   },
   metaPill: {
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
-    backgroundColor: "#eef2ff",
+    backgroundColor: "#f8fafc",
     paddingHorizontal: 5,
     paddingVertical: 1.5,
     borderRadius: 4,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
   },
   metaPillText: {
     fontSize: 10.5,
     fontWeight: "700",
-    color: "#4f46e5",
+    color: "#475569",
   },
   metaItem: {
     flexDirection: "row",
@@ -917,11 +929,16 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   retryBtn: {
-    backgroundColor: "#4A60D6",
+    backgroundColor: "#DC2626",
     borderRadius: 6,
     paddingVertical: 8,
     paddingHorizontal: 16,
     marginTop: 10,
+    shadowColor: "#DC2626",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
   },
   retryBtnText: {
     color: "#ffffff",
@@ -998,7 +1015,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   dropdownItemActive: {
-    backgroundColor: "#eff6ff",
+    backgroundColor: "#FEF2F2",
   },
   dropdownItemLeft: {
     flexDirection: "row",
@@ -1011,7 +1028,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   dropdownItemTextActive: {
-    color: "#4A60D6",
+    color: "#DC2626",
     fontWeight: "700",
   },
   inputGroup: {
@@ -1103,7 +1120,7 @@ const styles = StyleSheet.create({
     marginVertical: 1,
   },
   dayCellSelected: {
-    backgroundColor: "#4A60D6",
+    backgroundColor: "#DC2626",
   },
   dayText: {
     fontSize: 12,
@@ -1131,10 +1148,15 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   modalApplyBtn: {
-    backgroundColor: "#4A60D6",
+    backgroundColor: "#DC2626",
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: 6,
+    shadowColor: "#DC2626",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
   },
   modalApplyText: {
     color: "#ffffff",

@@ -301,6 +301,7 @@ export default function RechargeScreen() {
         <View style={styles.headerRightControls}>
           <TouchableOpacity style={styles.bellButton}>
             <Bell size={20} color="#334155" />
+            <View style={styles.bellBadge} />
           </TouchableOpacity>
           <View style={styles.profileBadge}>
             <View style={styles.profileBadgeTextContainer}>
@@ -353,7 +354,7 @@ export default function RechargeScreen() {
                 }}
               >
                 <View style={styles.dropdownSelectorLeft}>
-                  <Building2 size={18} color={selectedCamp ? "#4A60D6" : "#94a3b8"} style={styles.fieldIcon} />
+                  <Building2 size={18} color={selectedCamp ? "#DC2626" : "#94a3b8"} style={styles.fieldIcon} />
                   <Text style={[styles.dropdownSelectorText, !selectedCamp && { color: "#94a3b8" }]} numberOfLines={1}>
                     {selectedCamp || "Select Camp"}
                   </Text>
@@ -385,7 +386,7 @@ export default function RechargeScreen() {
                 </Text>
               </View>
               <View style={[styles.inputWrapper, mobileNumber.length > 0 && mobileNumber.length !== 10 && { borderColor: "#f87171" }]}>
-                <Phone size={18} color="#4A60D6" style={styles.inputIcon} />
+                <Phone size={18} color="#DC2626" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   placeholder="Enter 10-digit number (e.g. 0501234567)"
@@ -618,7 +619,7 @@ export default function RechargeScreen() {
               {/* Customer's Previous Recharge History (Displayed below Back & Confirm buttons) */}
               <View style={styles.prevHistoryContainer}>
                 <View style={styles.prevHistoryHeader}>
-                  <Clock size={14} color="#4A60D6" />
+                  <Clock size={14} color="#DC2626" />
                   <Text style={styles.prevHistoryTitle}>
                     Previous Recharge History ({customerHistory.length})
                   </Text>
@@ -762,16 +763,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 1,
     borderColor: "#E2E8F0",
+    position: "relative",
+  },
+  bellBadge: {
+    position: "absolute",
+    top: 6,
+    right: 7,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#EF4444",
   },
   profileBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#EEF2FF",
+    backgroundColor: "#FEF2F2",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: "#FECACA",
     gap: 8,
   },
   profileBadgeTextContainer: {
@@ -780,7 +791,7 @@ const styles = StyleSheet.create({
   profileBadgeName: {
     fontSize: 11,
     fontWeight: "700",
-    color: "#4A60D6",
+    color: "#DC2626",
   },
   profileBadgeRole: {
     fontSize: 8,
@@ -791,7 +802,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: "#4A60D6",
+    backgroundColor: "#DC2626",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -825,7 +836,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   stepTextActive: {
-    color: "#4A60D6",
+    color: "#DC2626",
     fontWeight: "700",
   },
   stepUnderline: {
@@ -833,7 +844,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: "60%",
     height: 3,
-    backgroundColor: "#4A60D6",
+    backgroundColor: "#DC2626",
     borderTopLeftRadius: 3,
     borderTopRightRadius: 3,
   },
@@ -869,7 +880,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   retryButton: {
-    backgroundColor: "#4A60D6",
+    backgroundColor: "#DC2626",
     paddingHorizontal: 24,
     paddingVertical: 10,
     borderRadius: 8,
@@ -1002,9 +1013,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   segmentButtonActive: {
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "#FEF2F2",
     borderWidth: 1,
-    borderColor: "#BFDBFE",
+    borderColor: "#FECACA",
   },
   segmentButtonDisabled: {
     backgroundColor: "#F1F5F9",
@@ -1016,21 +1027,21 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   segmentTextActive: {
-    color: "#4A60D6",
+    color: "#DC2626",
   },
   segmentTextDisabled: {
     color: "#94A3B8",
   },
   nextButton: {
-    backgroundColor: "#4A60D6",
+    backgroundColor: "#DC2626",
     height: 50,
     borderRadius: 10,
     justifyContent: "center",
     alignItems: "center",
     marginTop: 10,
-    shadowColor: "#4A60D6",
+    shadowColor: "#DC2626",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.2,
     shadowRadius: 6,
     elevation: 3,
   },
@@ -1102,7 +1113,7 @@ const styles = StyleSheet.create({
   receiptValueCode: {
     fontSize: 14,
     fontWeight: "bold",
-    color: "#4A60D6",
+    color: "#DC2626",
   },
   receiptDivider: {
     height: 1,
@@ -1169,7 +1180,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   prevPlanBadge: {
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "#FEF2F2",
     paddingHorizontal: 5,
     paddingVertical: 1.5,
     borderRadius: 4,
@@ -1177,7 +1188,7 @@ const styles = StyleSheet.create({
   prevPlanText: {
     fontSize: 9.5,
     fontWeight: "700",
-    color: "#2563EB",
+    color: "#DC2626",
   },
   prevDateText: {
     fontSize: 10,
@@ -1186,7 +1197,7 @@ const styles = StyleSheet.create({
   prevPriceText: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#059669",
+    color: "#DC2626",
   },
   confirmActionRow: {
     flexDirection: "row",
@@ -1212,9 +1223,14 @@ const styles = StyleSheet.create({
     flex: 2,
     height: 46,
     borderRadius: 8,
-    backgroundColor: "#4A60D6",
+    backgroundColor: "#DC2626",
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#DC2626",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
   },
   confirmSubmitBtnText: {
     color: "#ffffff",
@@ -1249,12 +1265,17 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   doneBtn: {
-    backgroundColor: "#4A60D6",
+    backgroundColor: "#DC2626",
     height: 46,
     borderRadius: 8,
     justifyContent: "center",
     alignItems: "center",
     width: "100%",
+    shadowColor: "#DC2626",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
   },
   doneBtnText: {
     color: "#ffffff",

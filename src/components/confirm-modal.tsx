@@ -162,12 +162,12 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     borderRadius: 10,
-    backgroundColor: "#4A60D6",
+    backgroundColor: "#DC2626",
     alignItems: "center",
     justifyContent: "center",
   },
   destructiveConfirmBtn: {
-    backgroundColor: "#ef4444",
+    backgroundColor: "#DC2626",
   },
   confirmBtnText: {
     fontSize: 14,

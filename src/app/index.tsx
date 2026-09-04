@@ -8,7 +8,9 @@ import {
     Trash2,
     User,
     Wifi,
-    X
+    X,
+    Eye,
+    EyeOff
 } from "lucide-react-native";
 import { useEffect, useState, useCallback } from "react";
 import {
@@ -43,6 +45,7 @@ export default function GatewayScreen() {
   const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [loginUsername, setLoginUsername] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [checkingLogin, setCheckingLogin] = useState(true);
@@ -172,7 +175,7 @@ export default function GatewayScreen() {
   if (checkingLogin || loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#4A60D6" />
+        <ActivityIndicator size="large" color="#DC2626" />
         <Text style={styles.loadingText}>
           {checkingLogin ? "Checking operator session..." : "Loading configurations..."}
         </Text>
@@ -183,7 +186,7 @@ export default function GatewayScreen() {
   if (currentUser) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#4A60D6" />
+        <ActivityIndicator size="large" color="#DC2626" />
         <Text style={styles.loadingText}>Connecting to Dashboard...</Text>
       </View>
     );
@@ -197,13 +200,10 @@ export default function GatewayScreen() {
           {/* Brand Logo */}
           <View style={styles.brandLogoContainer}>
             <Image
-              source={require("../../assets/images/green_wifi_icon.png")}
-              style={{ width: 72, height: 72, marginBottom: 12 }}
+              source={require("../../assets/images/app-logo.png")}
+              style={{ width: 90, height: 90, marginBottom: 8, borderRadius: 18 }}
               resizeMode="contain"
             />
-            <Text style={styles.brandLogoText}>
-              My <Text style={styles.brandLogoTextBlue}>wifi</Text>
-            </Text>
           </View>
 
           {/* Title */}
@@ -245,15 +245,25 @@ export default function GatewayScreen() {
                   setLoginPassword(text);
                   if (loginError) setLoginError(null);
                 }}
-                secureTextEntry
+                secureTextEntry={!showPassword}
                 autoCapitalize="none"
                 autoCorrect={false}
               />
-              <Key size={20} color="#94a3b8" style={styles.inputRightIcon} />
+              <TouchableOpacity
+                onPress={() => setShowPassword((prev) => !prev)}
+                style={styles.eyeIconButton}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                {showPassword ? (
+                  <EyeOff size={20} color="#64748B" />
+                ) : (
+                  <Eye size={20} color="#94a3b8" />
+                )}
+              </TouchableOpacity>
             </View>
 
             <TouchableOpacity
-              style={[styles.loginButtonIndigo, isLoggingIn && { opacity: 0.7 }]}
+              style={[styles.loginButtonRed, isLoggingIn && { opacity: 0.7 }]}
               onPress={handleOperatorLogin}
               disabled={isLoggingIn}
             >
@@ -264,15 +274,6 @@ export default function GatewayScreen() {
               )}
             </TouchableOpacity>
           </View>
-        </View>
-
-        {/* Bottom Illustration Photo */}
-        <View style={styles.illustrationContainer}>
-          <Image
-            source={require("../../assets/images/app-bottom-photo-in-login-page.png")}
-            style={styles.illustrationImage}
-            resizeMode="contain"
-          />
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -312,8 +313,8 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#1E293B",
   },
-  brandLogoTextBlue: {
-    color: "#4A60D6",
+  brandLogoTextRed: {
+    color: "#DC2626",
   },
   brandLogoSub: {
     fontSize: 12,
@@ -330,7 +331,7 @@ const styles = StyleSheet.create({
   },
   loginWelcomeStaff: {
     fontWeight: "bold",
-    color: "#4A60D6",
+    color: "#DC2626",
   },
   loginFormCard: {
     width: "100%",
@@ -376,16 +377,22 @@ const styles = StyleSheet.create({
   inputRightIcon: {
     marginLeft: 10,
   },
-  loginButtonIndigo: {
-    backgroundColor: "#4A60D6",
+  eyeIconButton: {
+    padding: 6,
+    marginLeft: 6,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loginButtonRed: {
+    backgroundColor: "#DC2626",
     height: 50,
     borderRadius: 8,
     justifyContent: "center",
     alignItems: "center",
     marginTop: 8,
-    shadowColor: "#4A60D6",
+    shadowColor: "#DC2626",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.25,
     shadowRadius: 6,
     elevation: 3,
   },

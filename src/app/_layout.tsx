@@ -11,12 +11,12 @@ const CustomLightTheme = {
   dark: false,
   colors: {
     ...DefaultTheme.colors,
-    primary: '#4A60D6',
+    primary: '#DC2626',
     background: '#F8FAFC',
     card: '#ffffff',
     text: '#1e293b',
     border: '#e2e8f0',
-    notification: '#4A60D6',
+    notification: '#DC2626',
   },
 };
 
