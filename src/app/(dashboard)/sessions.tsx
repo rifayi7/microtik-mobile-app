@@ -65,15 +65,21 @@ export default function HistoryScreen() {
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
 
+  const [allowedCamps, setAllowedCamps] = useState<string[]>([]);
+
   // Extract distinct camp names from registered routers
   const campList = useMemo(() => {
     const names = new Set<string>();
     routers.forEach((r) => {
       const name = r.camp || r.sessionName;
-      if (name) names.add(name);
+      if (name) {
+        if (allowedCamps.length === 0 || allowedCamps.includes(name)) {
+          names.add(name);
+        }
+      }
     });
     return Array.from(names);
-  }, [routers]);
+  }, [routers, allowedCamps]);
 
   const loadHistory = useCallback(async (selectedFilter: DateFilterType = dateFilter, isRefresh = false) => {
     if (!isRefresh) {
@@ -85,6 +91,15 @@ export default function HistoryScreen() {
     try {
       const activeUser = (await AsyncStorage.getItem("salesperson_name")) || salesperson;
       const storedUserId = await AsyncStorage.getItem("salesperson_id");
+      const allowedStr = await AsyncStorage.getItem("salesperson_allowed_camps");
+      if (allowedStr) {
+        try {
+          const parsed = JSON.parse(allowedStr);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setAllowedCamps(parsed);
+          }
+        } catch {}
+      }
 
       if (activeUser && activeUser !== "Unknown") {
         setSalesperson(activeUser);

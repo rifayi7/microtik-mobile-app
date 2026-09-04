@@ -73,10 +73,7 @@ export default function RechargeScreen() {
   }[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
-  const camps = useMemo(() => {
-    return routers.map((r) => r.camp || r.sessionName).filter(Boolean);
-  }, [routers]);
-
+  const [allowedCamps, setAllowedCamps] = useState<string[]>([]);
   const [selectedCamp, setSelectedCamp] = useState("");
 
   useEffect(() => {
@@ -85,9 +82,33 @@ export default function RechargeScreen() {
       if (user) {
         setSalesperson(user);
       }
+      const allowedStr = await AsyncStorage.getItem("salesperson_allowed_camps");
+      if (allowedStr) {
+        try {
+          const parsed = JSON.parse(allowedStr);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setAllowedCamps(parsed);
+          }
+        } catch {}
+      }
     }
     void loadSalesperson();
   }, []);
+
+  const camps = useMemo(() => {
+    const allCamps = routers.map((r) => r.camp || r.sessionName).filter(Boolean);
+    if (allowedCamps.length > 0) {
+      return allCamps.filter((c) => allowedCamps.includes(c));
+    }
+    return allCamps;
+  }, [routers, allowedCamps]);
+
+  // Set default selected camp from allowed list
+  useEffect(() => {
+    if (camps.length > 0 && (!selectedCamp || !camps.includes(selectedCamp))) {
+      setSelectedCamp(camps[0]);
+    }
+  }, [camps, selectedCamp]);
 
   const currentCampRouter = useMemo(() => {
     if (!selectedCamp) return null;

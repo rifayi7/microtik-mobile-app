@@ -84,7 +84,13 @@ export default function GatewayScreen() {
       const activeUrl = gatewayUrl || DEFAULT_GATEWAY_URL;
       const result = await fetchFromGateway<{
         success: boolean;
-        user?: { id?: number; username: string; displayName?: string };
+        user?: {
+          id?: number;
+          username: string;
+          displayName?: string;
+          companyName?: string;
+          allowedCamps?: string[];
+        };
         error?: string;
       }>(
         activeUrl,
@@ -103,6 +109,16 @@ export default function GatewayScreen() {
         }
         await AsyncStorage.setItem("salesperson_name", result.user.username);
         await AsyncStorage.setItem("salesperson_display_name", dName);
+        if (result.user.companyName) {
+          await AsyncStorage.setItem("salesperson_company", result.user.companyName);
+        } else {
+          await AsyncStorage.removeItem("salesperson_company");
+        }
+        if (result.user.allowedCamps) {
+          await AsyncStorage.setItem("salesperson_allowed_camps", JSON.stringify(result.user.allowedCamps));
+        } else {
+          await AsyncStorage.removeItem("salesperson_allowed_camps");
+        }
         setCurrentUser(dName);
         setLoginUsername("");
         setLoginPassword("");

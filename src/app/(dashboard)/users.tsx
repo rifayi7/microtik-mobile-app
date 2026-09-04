@@ -29,6 +29,8 @@ export default function CouponScreen() {
   const [loadingCampId, setLoadingCampId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
+  const [allowedCamps, setAllowedCamps] = useState<string[]>([]);
+
   useFocusEffect(
     useCallback(() => {
       async function loadUser() {
@@ -36,6 +38,16 @@ export default function CouponScreen() {
           const dName = await AsyncStorage.getItem("salesperson_display_name");
           const uName = await AsyncStorage.getItem("salesperson_name");
           setSalesperson(dName || uName || "Salesperson");
+
+          const allowedStr = await AsyncStorage.getItem("salesperson_allowed_camps");
+          if (allowedStr) {
+            try {
+              const parsed = JSON.parse(allowedStr);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                setAllowedCamps(parsed);
+              }
+            } catch {}
+          }
         } catch {}
       }
       void loadUser();
@@ -44,6 +56,14 @@ export default function CouponScreen() {
       }
     }, [selectedCampId])
   );
+
+  const visibleRouters = useMemo(() => {
+    if (allowedCamps.length === 0) return routers;
+    return routers.filter((r) => {
+      const campName = r.camp || r.sessionName;
+      return campName && allowedCamps.includes(campName);
+    });
+  }, [routers, allowedCamps]);
 
   const loadPlansForRouter = async (routerId: string, isRefresh = false) => {
     const targetRouter = routers.find((r) => r.id === routerId);
@@ -110,7 +130,7 @@ export default function CouponScreen() {
       >
         <Text style={styles.sectionTitle}>Camps Voucher Inventory</Text>
 
-        {routers.length === 0 ? (
+        {visibleRouters.length === 0 ? (
           <View style={styles.emptyCard}>
             <Building2 size={36} color="#94a3b8" style={{ marginBottom: 8 }} />
             <Text style={styles.emptyText}>No camps available.</Text>
@@ -119,7 +139,7 @@ export default function CouponScreen() {
             </Text>
           </View>
         ) : (
-          routers.map((routerItem) => {
+          visibleRouters.map((routerItem) => {
             const isExpanded = selectedCampId === routerItem.id;
             const plansList = campPlans[routerItem.id] || [];
             const isLoadingPlans = loadingCampId === routerItem.id;
