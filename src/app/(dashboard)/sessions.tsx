@@ -254,13 +254,20 @@ export default function HistoryScreen() {
     void loadHistory();
   };
 
-  // Filter logs by selected camp filter client-side
+  // Filter logs by allowedCamps and selected camp filter client-side
   const filteredLogs = useMemo(() => {
-    if (selectedCampFilter === "all") return logs;
-    return logs.filter(
+    let list = logs;
+    // Strictly restrict to allowed camps if assigned
+    if (allowedCamps.length > 0) {
+      list = list.filter(
+        (item) => item.campName && allowedCamps.some((c) => c.toLowerCase() === item.campName!.toLowerCase())
+      );
+    }
+    if (selectedCampFilter === "all") return list;
+    return list.filter(
       (item) => item.campName && item.campName.toLowerCase() === selectedCampFilter.toLowerCase()
     );
-  }, [logs, selectedCampFilter]);
+  }, [logs, allowedCamps, selectedCampFilter]);
 
   // Helper to format ISO or SQL date string into clean Dubai time (hh:mm AM/PM)
   const formatDubaiTime = (timestampStr?: string) => {
