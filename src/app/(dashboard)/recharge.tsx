@@ -1,11 +1,13 @@
 import {
   Bell,
   Building2,
+  Calendar,
   Check,
   ChevronDown,
   Clock,
   CreditCard,
   Phone,
+  Ticket,
 } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
@@ -672,68 +674,86 @@ export default function RechargeScreen() {
           setLastTransaction(null);
         }}
       >
-        <SafeAreaView style={styles.fullScreenSuccessSafeArea}>
-          <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-          <View style={styles.fullScreenSuccessContainer}>
-            <View style={styles.receiptCard}>
-              <View style={styles.successCheckIconBg}>
-                <Check size={38} color="#ffffff" />
-              </View>
-              <Text style={styles.receiptTitle}>Success!</Text>
-              <Text style={styles.receiptSubtitle}>Thank You For Your Recharge</Text>
-
-              <View style={styles.confirmDetailsWrapper}>
-                <View style={styles.receiptRow}>
-                  <Text style={styles.receiptLabel}>Voucher Code</Text>
-                  <Text style={styles.receiptValueCode}>{lastTransaction?.code}</Text>
-                </View>
-                <View style={styles.receiptDivider} />
-
-                <View style={styles.receiptRow}>
-                  <Text style={styles.receiptLabel}>Mobile Number</Text>
-                  <Text style={styles.receiptValue}>{lastTransaction?.mobile}</Text>
-                </View>
-                <View style={styles.receiptDivider} />
-
-                <View style={styles.receiptRow}>
-                  <Text style={styles.receiptLabel}>Validity</Text>
-                  <Text style={styles.receiptValue}>
-                    {lastTransaction && lastTransaction.validity > 0 ? `${lastTransaction.validity} Days` : "Custom"}
-                  </Text>
-                </View>
-                <View style={styles.receiptDivider} />
-
-                <View style={styles.receiptRow}>
-                  <Text style={styles.receiptLabel}>Selected Camp</Text>
-                  <Text style={styles.receiptValue}>{lastTransaction?.camp}</Text>
-                </View>
-                <View style={styles.receiptDivider} />
-
-                <View style={styles.receiptRow}>
-                  <Text style={styles.receiptLabel}>Payment Type</Text>
-                  <Text style={[styles.receiptValue, {textTransform: 'capitalize'}]}>{lastTransaction?.paymentType}</Text>
-                </View>
-                <View style={styles.receiptDivider} />
-
-                <View style={styles.receiptRow}>
-                  <Text style={styles.receiptLabel}>Time</Text>
-                  <Text style={styles.receiptValue}>{lastTransaction?.timestamp}</Text>
-                </View>
-              </View>
-
-              <TouchableOpacity 
-                style={styles.doneBtn}
-                activeOpacity={0.8}
-                onPress={() => {
-                  setStep("entry");
-                  setLastTransaction(null);
-                }}
-              >
-                <Text style={styles.doneBtnText}>Done</Text>
-              </TouchableOpacity>
+        <StatusBar barStyle="light-content" backgroundColor="#DC2626" />
+        <View style={styles.fullScreenSuccessContainer}>
+          {/* Top Decorative Success Icon */}
+          <View style={styles.successOuterGlow}>
+            <View style={styles.successInnerCircle}>
+              <Check size={36} color="#DC2626" strokeWidth={3.5} />
             </View>
           </View>
-        </SafeAreaView>
+
+          <Text style={styles.successReceiptTitle}>Success!</Text>
+          <Text style={styles.successReceiptSubtitle}>Thank You For Your Recharge</Text>
+
+          {/* White Card Receipt */}
+          <View style={styles.successReceiptCard}>
+            {/* Voucher Code */}
+            <View style={styles.receiptItemRow}>
+              <View style={styles.receiptIconBox}>
+                <Ticket size={18} color="#DC2626" />
+              </View>
+              <Text style={styles.receiptItemLabel}>Voucher Code</Text>
+              <Text style={styles.receiptItemCodeVal}>{lastTransaction?.code}</Text>
+            </View>
+            <View style={styles.receiptItemDivider} />
+
+            {/* Mobile Number */}
+            <View style={styles.receiptItemRow}>
+              <View style={styles.receiptIconBox}>
+                <Phone size={18} color="#DC2626" />
+              </View>
+              <Text style={styles.receiptItemLabel}>Mobile Number</Text>
+              <Text style={styles.receiptItemValBold}>{lastTransaction?.mobile}</Text>
+            </View>
+            <View style={styles.receiptItemDivider} />
+
+            {/* Validity */}
+            <View style={styles.receiptItemRow}>
+              <View style={styles.receiptIconBox}>
+                <Calendar size={18} color="#DC2626" />
+              </View>
+              <Text style={styles.receiptItemLabel}>Validity</Text>
+              <Text style={styles.receiptItemValBold}>
+                {lastTransaction && lastTransaction.validity > 0 ? `${lastTransaction.validity} Days` : "Custom"}
+              </Text>
+            </View>
+            <View style={styles.receiptItemDivider} />
+
+            {/* Payment Type */}
+            <View style={styles.receiptItemRow}>
+              <View style={styles.receiptIconBox}>
+                <CreditCard size={18} color="#DC2626" />
+              </View>
+              <Text style={styles.receiptItemLabel}>Payment Type</Text>
+              <Text style={[styles.receiptItemValBold, { textTransform: "capitalize" }]}>
+                {lastTransaction?.paymentType}
+              </Text>
+            </View>
+            <View style={styles.receiptItemDivider} />
+
+            {/* Time */}
+            <View style={styles.receiptItemRow}>
+              <View style={styles.receiptIconBox}>
+                <Clock size={18} color="#DC2626" />
+              </View>
+              <Text style={styles.receiptItemLabel}>Time</Text>
+              <Text style={styles.receiptItemValBold}>{lastTransaction?.timestamp}</Text>
+            </View>
+
+            {/* Dark Done Button */}
+            <TouchableOpacity
+              style={styles.successDoneBtn}
+              activeOpacity={0.85}
+              onPress={() => {
+                setStep("entry");
+                setLastTransaction(null);
+              }}
+            >
+              <Text style={styles.successDoneBtnText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
 
       <NotificationModal
@@ -1261,59 +1281,111 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 
-  // Success state specific
-  successCheckIconBg: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: "#10B981",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 16,
-    shadowColor: "#10B981",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  receiptTitle: {
-    fontSize: 22,
-    fontWeight: "bold",
-    color: "#1E293B",
-    marginBottom: 4,
-  },
-  receiptSubtitle: {
-    fontSize: 13,
-    color: "#64748B",
-    marginBottom: 20,
-  },
-  doneBtn: {
-    backgroundColor: "#DC2626",
-    height: 46,
-    borderRadius: 8,
-    justifyContent: "center",
-    alignItems: "center",
-    width: "100%",
-    shadowColor: "#DC2626",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  doneBtnText: {
-    color: "#ffffff",
-    fontWeight: "bold",
-    fontSize: 15,
-  },
-  fullScreenSuccessSafeArea: {
-    flex: 1,
-    backgroundColor: "#F8FAFC",
-  },
+  // Success Modal Specific Styles matching design
   fullScreenSuccessContainer: {
     flex: 1,
+    backgroundColor: "#C91414", // Solid Crimson Red background
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 20,
-    backgroundColor: "#F8FAFC",
+    paddingHorizontal: 22,
+  },
+  successOuterGlow: {
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  successInnerCircle: {
+    width: 78,
+    height: 78,
+    borderRadius: 39,
+    backgroundColor: "#ffffff",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  successReceiptTitle: {
+    fontSize: 28,
+    fontWeight: "900",
+    color: "#ffffff",
+    textAlign: "center",
+    marginBottom: 6,
+    letterSpacing: 0.2,
+  },
+  successReceiptSubtitle: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.9)",
+    textAlign: "center",
+    marginBottom: 26,
+    fontWeight: "500",
+  },
+  successReceiptCard: {
+    width: "100%",
+    backgroundColor: "#ffffff",
+    borderRadius: 22,
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  receiptItemRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 11,
+  },
+  receiptIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#FEE2E2",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  receiptItemLabel: {
+    fontSize: 13.5,
+    color: "#475569",
+    fontWeight: "500",
+    flex: 1,
+  },
+  receiptItemCodeVal: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: "#DC2626",
+    letterSpacing: 0.5,
+  },
+  receiptItemValBold: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#0F172A",
+  },
+  receiptItemDivider: {
+    height: 1,
+    backgroundColor: "#F1F5F9",
+  },
+  successDoneBtn: {
+    backgroundColor: "#1E293B", // Dark navy / black button from design
+    height: 48,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 18,
+    width: "100%",
+  },
+  successDoneBtnText: {
+    color: "#ffffff",
+    fontWeight: "800",
+    fontSize: 15,
   },
 });
