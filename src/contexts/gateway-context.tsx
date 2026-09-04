@@ -35,6 +35,9 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
     try {
       const normalizedUrl = url.replace(/\/+$/, "");
       const allowedStr = await AsyncStorage.getItem("salesperson_allowed_camps");
+      const storedName = await AsyncStorage.getItem("salesperson_name");
+      const storedUserId = await AsyncStorage.getItem("salesperson_id");
+
       let allowedCamps: string[] = [];
       if (allowedStr) {
         try {
@@ -43,9 +46,16 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
         } catch {}
       }
 
+      let routerPath = "/api/mikrotik/routers?verified=true";
+      if (storedUserId) {
+        routerPath += `&salesPersonId=${encodeURIComponent(storedUserId)}`;
+      } else if (storedName && storedName !== "Unknown") {
+        routerPath += `&salesperson=${encodeURIComponent(storedName)}`;
+      }
+
       const result = await fetchFromGateway<{ routers: MikrotikRouterConfig[] }>(
         normalizedUrl,
-        "/api/mikrotik/routers?verified=true",
+        routerPath,
         null,
         { method: "GET" }
       );
