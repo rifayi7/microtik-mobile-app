@@ -39,11 +39,6 @@ export default function GatewayScreen() {
     connectToGateway,
   } = useGateway();
 
-  const [inputUrl, setInputUrl] = useState(gatewayUrl || DEFAULT_GATEWAY_URL);
-  const [isConnectingGateway, setIsConnectingGateway] = useState(false);
-  const [overrideShowGateway, setOverrideShowGateway] = useState(SHOW_GATEWAY_CONFIG_SCREEN);
-  const [logoTapCount, setLogoTapCount] = useState(0);
-
   // Operator Login State
   const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [loginUsername, setLoginUsername] = useState("");
@@ -71,10 +66,8 @@ export default function GatewayScreen() {
               } catch {}
             }
             setCurrentUser(storedUser);
-            if (!overrideShowGateway) {
-              void connectToGateway(gatewayUrl || DEFAULT_GATEWAY_URL, token || undefined, allowedCamps);
-              router.replace("/(dashboard)/dashboard-main");
-            }
+            void connectToGateway(gatewayUrl || DEFAULT_GATEWAY_URL, token || undefined, allowedCamps);
+            router.replace("/(dashboard)/dashboard-main");
           } else {
             setCurrentUser(null);
             setLoginPassword("");
@@ -90,7 +83,7 @@ export default function GatewayScreen() {
       return () => {
         isMounted = false;
       };
-    }, [overrideShowGateway, gatewayUrl, connectToGateway])
+    }, [gatewayUrl, connectToGateway])
   );
 
   const handleOperatorLogin = async () => {
@@ -155,14 +148,12 @@ export default function GatewayScreen() {
         setLoginPassword("");
         setLoginError(null);
 
-        if (!overrideShowGateway) {
-          try {
-            await connectToGateway(activeUrl, result.token, result.user.allowedCamps);
-          } catch (e) {
-            console.warn("Auto gateway connect warning:", e);
-          }
-          router.replace("/(dashboard)/dashboard-main");
+        try {
+          await connectToGateway(activeUrl, result.token, result.user.allowedCamps);
+        } catch (e) {
+          console.warn("Auto gateway connect warning:", e);
         }
+        router.replace("/(dashboard)/dashboard-main");
         return;
       }
 
@@ -178,58 +169,6 @@ export default function GatewayScreen() {
     }
   };
 
-  const handleOperatorLogout = async () => {
-    try {
-      await AsyncStorage.removeItem("salesperson_name");
-      setCurrentUser(null);
-    } catch {
-      Alert.alert("Error", "Failed to clear operator session");
-    }
-  };
-
-  const [isGatewaySessionConnected, setIsGatewaySessionConnected] = useState(false);
-
-  useEffect(() => {
-    setInputUrl(gatewayUrl);
-  }, [gatewayUrl]);
-
-  // Navigate to dashboard only when they explicitly connect in this session
-  useEffect(() => {
-    if (isGatewaySessionConnected) {
-      router.replace("/(dashboard)/dashboard-main");
-    }
-  }, [isGatewaySessionConnected]);
-
-  const handleConnectGateway = async () => {
-    if (!inputUrl.trim()) {
-      Alert.alert("Error", "Gateway URL cannot be empty");
-      return;
-    }
-    
-    setIsConnectingGateway(true);
-    try {
-      const result = await connectToGateway(inputUrl.trim());
-      if (result.success) {
-        setIsGatewaySessionConnected(true);
-        if (result.routerCount === 0) {
-          Alert.alert(
-            "Connected",
-            "Connected successfully, but no camps are configured yet. Please configure your routers in the Web Admin Portal."
-          );
-        } else {
-          Alert.alert("Success", "Connected to Gateway server successfully!");
-        }
-      }
-    } catch (err) {
-      Alert.alert(
-        "Connection Failed",
-        err instanceof Error ? err.message : "Failed to connect to Gateway server. Please verify the URL."
-      );
-    } finally {
-      setIsConnectingGateway(false);
-    }
-  };
-
   if (checkingLogin || loading) {
     return (
       <View style={styles.centered}>
@@ -241,116 +180,7 @@ export default function GatewayScreen() {
     );
   }
 
-  if (!currentUser) {
-    return (
-      <SafeAreaView style={styles.containerWhite}>
-        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-        <ScrollView contentContainerStyle={styles.loginScrollContainer} keyboardShouldPersistTaps="handled">
-          <View style={styles.loginContentWrapper}>
-            {/* Logo with secret 5-tap developer toggle */}
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => {
-                const next = logoTapCount + 1;
-                setLogoTapCount(next);
-                if (next >= 5) {
-                  setLogoTapCount(0);
-                  const newMode = !overrideShowGateway;
-                  setOverrideShowGateway(newMode);
-                  Alert.alert(
-                    "Developer Option",
-                    newMode
-                      ? "Manual Backend Gateway URL configuration mode enabled."
-                      : "Direct automatic Vercel mode restored."
-                  );
-                }
-              }}
-              style={styles.brandLogoContainer}
-            >
-              <Image
-                source={require("../../assets/images/green_wifi_icon.png")}
-                style={{ width: 72, height: 72, marginBottom: 12 }}
-                resizeMode="contain"
-              />
-              <Text style={styles.brandLogoText}>
-                My <Text style={styles.brandLogoTextBlue}>wifi</Text>
-              </Text>
-            </TouchableOpacity>
-
-            {/* Title */}
-            <Text style={styles.loginWelcomeText}>
-              Welcome to <Text style={styles.loginWelcomeStaff}>Staff</Text> Login
-            </Text>
-
-            {/* Card Form */}
-            <View style={styles.loginFormCard}>
-              {loginError ? (
-                <View style={styles.loginErrorBanner}>
-                  <Text style={styles.loginErrorText}>{loginError}</Text>
-                </View>
-              ) : null}
-
-              <View style={styles.inputWrapperLight}>
-                <TextInput
-                  style={styles.inputLight}
-                  placeholder="Username"
-                  placeholderTextColor="#94a3b8"
-                  value={loginUsername}
-                  onChangeText={(text) => {
-                    setLoginUsername(text);
-                    if (loginError) setLoginError(null);
-                  }}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-                <User size={20} color="#94a3b8" style={styles.inputRightIcon} />
-              </View>
-
-              <View style={styles.inputWrapperLight}>
-                <TextInput
-                  style={styles.inputLight}
-                  placeholder="Password"
-                  placeholderTextColor="#94a3b8"
-                  value={loginPassword}
-                  onChangeText={(text) => {
-                    setLoginPassword(text);
-                    if (loginError) setLoginError(null);
-                  }}
-                  secureTextEntry
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-                <Key size={20} color="#94a3b8" style={styles.inputRightIcon} />
-              </View>
-
-              <TouchableOpacity
-                style={[styles.loginButtonIndigo, isLoggingIn && { opacity: 0.7 }]}
-                onPress={handleOperatorLogin}
-                disabled={isLoggingIn}
-              >
-                {isLoggingIn ? (
-                  <ActivityIndicator size="small" color="#ffffff" />
-                ) : (
-                  <Text style={styles.loginButtonText}>LOGIN</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Bottom Illustration Photo */}
-          <View style={styles.illustrationContainer}>
-            <Image
-              source={require("../../assets/images/app-bottom-photo-in-login-page.png")}
-              style={styles.illustrationImage}
-              resizeMode="contain"
-            />
-          </View>
-        </ScrollView>
-      </SafeAreaView>
-    );
-  }
-
-  if (!overrideShowGateway && currentUser) {
+  if (currentUser) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color="#4A60D6" />
@@ -359,62 +189,85 @@ export default function GatewayScreen() {
     );
   }
 
-  // Connected state: Router management list (styled in clean light theme!)
   return (
-    <SafeAreaView style={styles.containerLight}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f8fafc" />
-      <ScrollView contentContainerStyle={styles.scrollContainerLight} keyboardShouldPersistTaps="handled">
-        {/* Header */}
-        <View style={styles.headerLight}>
-          <View style={styles.logoBadgeLight}>
-            <Wifi size={24} color="#4A60D6" />
-          </View>
-          <Text style={styles.titleLight}>My WiFi</Text>
-          <Text style={styles.subtitleLight}>MikroTik RouterOS Gateway Manager</Text>
-        </View>
-
-        {/* Operator Session Info */}
-        <View style={styles.operatorSessionCardLight}>
-          <Text style={styles.operatorSessionTextLight}>
-            Operator: <Text style={styles.operatorSessionNameLight}>{currentUser}</Text>
-          </Text>
-          <TouchableOpacity style={styles.operatorLogoutBtnLight} onPress={handleOperatorLogout}>
-            <Text style={styles.operatorLogoutBtnTextLight}>Logout</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Gateway API Configuration */}
-        <View style={styles.cardLight}>
-          <Text style={styles.cardTitleLight}>Next.js Gateway Server</Text>
-          <Text style={styles.cardDescLight}>
-            Enter the URL of your Next.js server and click Connect.
-          </Text>
-          <View style={styles.inputRowLight}>
-            <TextInput
-              style={styles.inputLightConfig}
-              placeholder="e.g. http://192.168.1.5:3000"
-              placeholderTextColor="#94a3b8"
-              value={inputUrl}
-              onChangeText={setInputUrl}
-              autoCapitalize="none"
-              autoCorrect={false}
+    <SafeAreaView style={styles.containerWhite}>
+      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+      <ScrollView contentContainerStyle={styles.loginScrollContainer} keyboardShouldPersistTaps="handled">
+        <View style={styles.loginContentWrapper}>
+          {/* Brand Logo */}
+          <View style={styles.brandLogoContainer}>
+            <Image
+              source={require("../../assets/images/green_wifi_icon.png")}
+              style={{ width: 72, height: 72, marginBottom: 12 }}
+              resizeMode="contain"
             />
-            <TouchableOpacity 
-              style={[styles.saveButtonLight, isConnectingGateway && { opacity: 0.7 }]} 
-              onPress={handleConnectGateway}
-              disabled={isConnectingGateway}
+            <Text style={styles.brandLogoText}>
+              My <Text style={styles.brandLogoTextBlue}>wifi</Text>
+            </Text>
+          </View>
+
+          {/* Title */}
+          <Text style={styles.loginWelcomeText}>
+            Welcome to <Text style={styles.loginWelcomeStaff}>Staff</Text> Login
+          </Text>
+
+          {/* Card Form */}
+          <View style={styles.loginFormCard}>
+            {loginError ? (
+              <View style={styles.loginErrorBanner}>
+                <Text style={styles.loginErrorText}>{loginError}</Text>
+              </View>
+            ) : null}
+
+            <View style={styles.inputWrapperLight}>
+              <TextInput
+                style={styles.inputLight}
+                placeholder="Username"
+                placeholderTextColor="#94a3b8"
+                value={loginUsername}
+                onChangeText={(text) => {
+                  setLoginUsername(text);
+                  if (loginError) setLoginError(null);
+                }}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <User size={20} color="#94a3b8" style={styles.inputRightIcon} />
+            </View>
+
+            <View style={styles.inputWrapperLight}>
+              <TextInput
+                style={styles.inputLight}
+                placeholder="Password"
+                placeholderTextColor="#94a3b8"
+                value={loginPassword}
+                onChangeText={(text) => {
+                  setLoginPassword(text);
+                  if (loginError) setLoginError(null);
+                }}
+                secureTextEntry
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <Key size={20} color="#94a3b8" style={styles.inputRightIcon} />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.loginButtonIndigo, isLoggingIn && { opacity: 0.7 }]}
+              onPress={handleOperatorLogin}
+              disabled={isLoggingIn}
             >
-              {isConnectingGateway ? (
-                <ActivityIndicator size="small" color="#fff" />
+              {isLoggingIn ? (
+                <ActivityIndicator size="small" color="#ffffff" />
               ) : (
-                <Text style={styles.saveButtonTextLight}>Connect</Text>
+                <Text style={styles.loginButtonText}>LOGIN</Text>
               )}
             </TouchableOpacity>
           </View>
         </View>
 
         {/* Bottom Illustration Photo */}
-        <View style={styles.illustrationContainerGateway}>
+        <View style={styles.illustrationContainer}>
           <Image
             source={require("../../assets/images/app-bottom-photo-in-login-page.png")}
             style={styles.illustrationImage}
