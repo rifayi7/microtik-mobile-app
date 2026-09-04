@@ -67,13 +67,29 @@ export default function HistoryScreen() {
 
   const [allowedCamps, setAllowedCamps] = useState<string[]>([]);
 
-  // Extract distinct camp names from registered routers
+  // Load allowed camps from storage on mount
+  useEffect(() => {
+    async function initAllowed() {
+      try {
+        const allowedStr = await AsyncStorage.getItem("salesperson_allowed_camps");
+        if (allowedStr) {
+          const parsed = JSON.parse(allowedStr);
+          if (Array.isArray(parsed)) {
+            setAllowedCamps(parsed);
+          }
+        }
+      } catch {}
+    }
+    void initAllowed();
+  }, []);
+
+  // Extract distinct camp names from registered routers, strictly scoped to allowedCamps
   const campList = useMemo(() => {
     const names = new Set<string>();
     routers.forEach((r) => {
       const name = r.camp || r.sessionName;
       if (name) {
-        if (allowedCamps.length === 0 || allowedCamps.includes(name)) {
+        if (allowedCamps.length === 0 || allowedCamps.some((c) => c.toLowerCase() === name.toLowerCase())) {
           names.add(name);
         }
       }
@@ -92,10 +108,12 @@ export default function HistoryScreen() {
       const activeUser = (await AsyncStorage.getItem("salesperson_name")) || salesperson;
       const storedUserId = await AsyncStorage.getItem("salesperson_id");
       const allowedStr = await AsyncStorage.getItem("salesperson_allowed_camps");
+      let currentAllowed: string[] = allowedCamps;
       if (allowedStr) {
         try {
           const parsed = JSON.parse(allowedStr);
           if (Array.isArray(parsed) && parsed.length > 0) {
+            currentAllowed = parsed;
             setAllowedCamps(parsed);
           }
         } catch {}
