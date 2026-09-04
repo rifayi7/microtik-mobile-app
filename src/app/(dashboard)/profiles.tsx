@@ -76,7 +76,7 @@ export default function MoreScreen() {
 
   const handleOpenResetModal = () => {
     setResetVoucherCode("");
-    setSelectedResetCampId(activeRouter?.id || "auto");
+    setSelectedResetCampId(activeRouter?.id || (routers.length > 0 ? routers[0].id : "auto"));
     setResetError(null);
     setResetSuccess(null);
     setShowResetModal(true);
@@ -188,8 +188,6 @@ export default function MoreScreen() {
 
         {/* Voucher Tools Section */}
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionHeader}>Voucher Management</Text>
-
           {/* Reset User Session */}
           <TouchableOpacity
             style={styles.menuRow}
@@ -200,8 +198,7 @@ export default function MoreScreen() {
               <RotateCcw size={18} color="#ea580c" />
             </View>
             <View style={styles.menuTextWrap}>
-              <Text style={[styles.menuTitle, { color: "#ea580c" }]}>Reset User Session</Text>
-              <Text style={styles.menuSubtitle}>Disconnect active Wi-Fi session for a voucher</Text>
+              <Text style={[styles.menuTitle, { color: "#ea580c" }]}>Reset Voucher Code</Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -237,8 +234,7 @@ export default function MoreScreen() {
                 <RotateCcw size={20} color="#ea580c" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.resetModalTitle}>Reset User Session</Text>
-                <Text style={styles.resetModalSub}>Disconnect live HotSpot connection</Text>
+                <Text style={styles.resetModalTitle}>Reset</Text>
               </View>
               <TouchableOpacity
                 onPress={() => setShowResetModal(false)}
@@ -247,13 +243,6 @@ export default function MoreScreen() {
               >
                 <X size={20} color="#94a3b8" />
               </TouchableOpacity>
-            </View>
-
-            {/* Note & explanation */}
-            <View style={styles.noticeBox}>
-              <Text style={styles.noticeText}>
-                This terminates the current Wi-Fi session. The voucher code and its remaining balance will <Text style={{ fontWeight: "700" }}>not</Text> be deleted.
-              </Text>
             </View>
 
             {/* Target Camp Selector */}
@@ -265,32 +254,6 @@ export default function MoreScreen() {
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.campChipsScroll}
                 >
-                  {/* Auto Detect Chip */}
-                  <TouchableOpacity
-                    style={[
-                      styles.campChip,
-                      selectedResetCampId === "auto" && styles.campChipSelected,
-                    ]}
-                    onPress={() => setSelectedResetCampId("auto")}
-                    activeOpacity={0.7}
-                  >
-                    <Building2
-                      size={14}
-                      color={selectedResetCampId === "auto" ? "#ea580c" : "#64748b"}
-                    />
-                    <Text
-                      style={[
-                        styles.campChipText,
-                        selectedResetCampId === "auto" && styles.campChipTextSelected,
-                      ]}
-                    >
-                      Auto-Detect
-                    </Text>
-                    {selectedResetCampId === "auto" && (
-                      <Check size={13} color="#ea580c" />
-                    )}
-                  </TouchableOpacity>
-
                   {/* Router / Camp Chips */}
                   {routers.map((r) => {
                     const campName = r.camp || r.sessionName || "Camp";
@@ -320,7 +283,7 @@ export default function MoreScreen() {
 
             {/* Input field */}
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Voucher Code / Username</Text>
+              <Text style={styles.inputLabel}>Voucher Code</Text>
               <TextInput
                 style={styles.textInput}
                 placeholder="Enter voucher code (e.g. ABC123)"

@@ -459,16 +459,18 @@ export default function RechargeScreen() {
               <Text style={styles.fieldLabel}>Choose payment type</Text>
               <View style={styles.segmentedControl}>
                 <TouchableOpacity 
-                  style={[styles.segmentButton, paymentType === "cash" && styles.segmentButtonActive]}
+                  style={[styles.segmentButton, styles.segmentButtonActive]}
                   onPress={() => setPaymentType("cash")}
+                  activeOpacity={0.8}
                 >
-                  <Text style={[styles.segmentText, paymentType === "cash" && styles.segmentTextActive]}>Cash</Text>
+                  <Text style={[styles.segmentText, styles.segmentTextActive]}>Cash</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
-                  style={[styles.segmentButton, paymentType === "credit" && styles.segmentButtonActive]}
-                  onPress={() => setPaymentType("credit")}
+                  style={[styles.segmentButton, styles.segmentButtonDisabled]}
+                  disabled={true}
+                  activeOpacity={1}
                 >
-                  <Text style={[styles.segmentText, paymentType === "credit" && styles.segmentTextActive]}>Credit</Text>
+                  <Text style={[styles.segmentText, styles.segmentTextDisabled]}>Credit</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1004,6 +1006,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#BFDBFE",
   },
+  segmentButtonDisabled: {
+    backgroundColor: "#F1F5F9",
+    opacity: 0.5,
+  },
   segmentText: {
     fontSize: 14,
     color: "#64748B",
@@ -1011,6 +1017,9 @@ const styles = StyleSheet.create({
   },
   segmentTextActive: {
     color: "#4A60D6",
+  },
+  segmentTextDisabled: {
+    color: "#94A3B8",
   },
   nextButton: {
     backgroundColor: "#4A60D6",

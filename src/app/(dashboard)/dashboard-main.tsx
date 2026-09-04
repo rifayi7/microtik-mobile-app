@@ -132,7 +132,6 @@ export default function DashboardScreen() {
         <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
         <View style={styles.centered}>
           <ActivityIndicator size="large" color="#4A60D6" />
-          <Text style={styles.loadingText}>Fetching dashboard data...</Text>
         </View>
       </SafeAreaView>
     );
@@ -166,9 +165,9 @@ export default function DashboardScreen() {
       >
         {/* TOP ROW: Outstanding Balance & Today's Sale */}
         <View style={styles.topCardsRow}>
-          {/* Outstanding Balance Card (Light Cyan/Blue) */}
+          {/* Total Collection Card (Light Cyan/Blue) */}
           <View style={styles.outstandingCard}>
-            <Text style={styles.topCardTitle}>Outstanding{"\n"}Balance</Text>
+            <Text style={styles.topCardTitle}>Total{"\n"}Collection</Text>
             <View style={styles.topCardBottom}>
               <Text style={styles.outstandingValue}>
                 AED <Text style={styles.outstandingValueBold}>
@@ -205,9 +204,6 @@ export default function DashboardScreen() {
         {/* SALE ANALYSIS SECTION */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Sale Analysis</Text>
-          <TouchableOpacity>
-            <Text style={styles.viewAllText}>View All</Text>
-          </TouchableOpacity>
         </View>
 
         {summaryList.length === 0 ? (
@@ -237,13 +233,13 @@ export default function DashboardScreen() {
           ))
         )}
 
-        {/* CAMPWISE PENDING SECTION */}
-        <Text style={styles.sectionTitlePending}>Campwise pending</Text>
+        {/* CAMPWISE COLLECTION SECTION */}
+        <Text style={styles.sectionTitlePending}>Campwise Collection</Text>
 
         {summaryList.length === 0 ? (
           <View style={styles.emptyCard}>
             <Wifi size={36} color="#94a3b8" style={{ marginBottom: 8 }} />
-            <Text style={styles.emptyText}>No outstanding balances.</Text>
+            <Text style={styles.emptyText}>No collections recorded.</Text>
           </View>
         ) : (
           summaryList.map((item, index) => (
@@ -253,7 +249,7 @@ export default function DashboardScreen() {
                 <Text style={styles.campNameBoldPending} numberOfLines={2}>{item.campName}</Text>
               </View>
               <View style={styles.pendingCardRight}>
-                <Text style={styles.cardColLabel}>Outstanding</Text>
+                <Text style={styles.cardColLabel}>Collection</Text>
                 <Text style={styles.outstandingAmountText}>
                   AED <Text style={styles.outstandingBoldText}>{item.outstanding}</Text>
                 </Text>
