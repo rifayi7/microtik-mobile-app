@@ -11,7 +11,7 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Bell, Wifi, Building2, DollarSign, TrendingUp, Award, Calendar } from "lucide-react-native";
+import { Bell, Wifi, Building2, Wallet, Receipt, ChevronRight } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useGateway } from "../../contexts/gateway-context";
 import { fetchFromGateway } from "../../lib/api-client";
@@ -131,7 +131,7 @@ export default function DashboardScreen() {
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#4A60D6" />
+          <ActivityIndicator size="large" color="#DC2626" />
         </View>
       </SafeAreaView>
     );
@@ -149,6 +149,7 @@ export default function DashboardScreen() {
         </View>
         <TouchableOpacity style={styles.bellButton}>
           <Bell size={22} color="#0f172a" />
+          <View style={styles.bellBadge} />
         </TouchableOpacity>
       </View>
 
@@ -158,16 +159,21 @@ export default function DashboardScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#4A60D6"
-            colors={["#4A60D6"]}
+            tintColor="#DC2626"
+            colors={["#DC2626"]}
           />
         }
       >
-        {/* TOP ROW: Outstanding Balance & Today's Sale */}
+        {/* TOP ROW: Total Collection & Today's Sale */}
         <View style={styles.topCardsRow}>
-          {/* Total Collection Card (Light Cyan/Blue) */}
+          {/* Total Collection Card (Crimson Red) */}
           <View style={styles.outstandingCard}>
-            <Text style={styles.topCardTitle}>Total{"\n"}Collection</Text>
+            <View style={styles.topCardHeader}>
+              <Text style={styles.topCardTitleRed}>Total{"\n"}Collection</Text>
+              <View style={styles.iconCircleRed}>
+                <Wallet size={18} color="#ffffff" />
+              </View>
+            </View>
             <View style={styles.topCardBottom}>
               <Text style={styles.outstandingValue}>
                 AED <Text style={styles.outstandingValueBold}>
@@ -177,11 +183,16 @@ export default function DashboardScreen() {
             </View>
           </View>
 
-          {/* Today's Sale Card (Light Green) */}
+          {/* Today's Sale Card (Dark Charcoal) */}
           <View style={styles.todaySaleCard}>
-            <Text style={styles.topCardTitle}>Today's{"\n"}Sale</Text>
+            <View style={styles.topCardHeader}>
+              <Text style={styles.topCardTitleDark}>Today's{"\n"}Sale</Text>
+              <View style={styles.iconCircleDark}>
+                <Receipt size={18} color="#ef4444" />
+              </View>
+            </View>
             <View style={styles.todayCardContent}>
-              <Text style={styles.statSmallLabel}>Amount</Text>
+              <Text style={styles.statSmallLabelDark}>Amount</Text>
               <Text style={styles.todayAmountValue}>
                 AED <Text style={styles.todayAmountValueBold}>
                   {userStats.todayRevenue.toFixed(0)}
@@ -190,7 +201,7 @@ export default function DashboardScreen() {
 
               <View style={styles.todayDivider} />
 
-              <Text style={styles.statSmallLabel}>Count</Text>
+              <Text style={styles.statSmallLabelDark}>Count</Text>
               <Text style={styles.todayCountValue}>
                 {(() => {
                   const cnt = userStats.todaySalesCount;
@@ -229,6 +240,7 @@ export default function DashboardScreen() {
                 <Text style={styles.cardColLabel}>Monthly sale</Text>
                 <Text style={styles.saleAmountMain}>AED {Number(item.monthlySale || 0).toFixed(0)}</Text>
               </View>
+              <ChevronRight size={18} color="#94a3b8" style={{ marginLeft: 6 }} />
             </View>
           ))
         )}
@@ -254,6 +266,7 @@ export default function DashboardScreen() {
                   AED <Text style={styles.outstandingBoldText}>{item.outstanding}</Text>
                 </Text>
               </View>
+              <ChevronRight size={18} color="#94a3b8" style={{ marginLeft: 8 }} />
             </View>
           ))
         )}
@@ -310,6 +323,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
+    position: "relative",
+  },
+  bellBadge: {
+    position: "absolute",
+    top: 6,
+    right: 8,
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: "#EF4444",
   },
   scrollContainer: {
     paddingHorizontal: 16,
@@ -323,167 +346,103 @@ const styles = StyleSheet.create({
   },
   outstandingCard: {
     flex: 1,
-    backgroundColor: "#e0f2fe", // Light soft cyan/blue from image
+    backgroundColor: "#DC2626", // Solid Crimson Red
     borderRadius: 18,
     padding: 16,
     minHeight: 160,
     justifyContent: "space-between",
-    borderWidth: 1,
-    borderColor: "#bae6fd",
-    shadowColor: "#0284c7",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
+    shadowColor: "#DC2626",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
   todaySaleCard: {
     flex: 1,
-    backgroundColor: "#dcfce7", // Light soft pastel green from image
+    backgroundColor: "#18181B", // Dark Charcoal / Black Card
     borderRadius: 18,
     padding: 16,
     minHeight: 160,
     justifyContent: "space-between",
-    borderWidth: 1,
-    borderColor: "#bbf7d0",
-    shadowColor: "#16a34a",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  topCardTitle: {
-    fontSize: 19,
-    fontWeight: "400",
-    color: "#334155",
-    lineHeight: 24,
+  topCardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
+  topCardTitleRed: {
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    lineHeight: 22,
+  },
+  topCardTitleDark: {
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    lineHeight: 22,
+  },
+  iconCircleRed: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  iconCircleDark: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(239, 68, 68, 0.15)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   topCardBottom: {
     marginTop: 16,
   },
   outstandingValue: {
-    fontSize: 14,
-    color: "#2563eb",
+    fontSize: 13,
+    color: "#FEE2E2",
     fontWeight: "500",
   },
   outstandingValueBold: {
     fontSize: 22,
     fontWeight: "800",
-    color: "#1d4ed8",
-  },
-  outstandingSubValue: {
-    fontSize: 13,
-    color: "#64748b",
-    marginTop: 2,
+    color: "#FFFFFF",
   },
   todayCardContent: {
     marginTop: 6,
   },
-  statSmallLabel: {
+  statSmallLabelDark: {
     fontSize: 12,
-    color: "#64748b",
+    color: "#A1A1AA",
     marginBottom: 2,
   },
   todayAmountValue: {
     fontSize: 13,
-    color: "#15803d",
+    color: "#F87171",
     fontWeight: "500",
   },
   todayAmountValueBold: {
     fontSize: 20,
     fontWeight: "800",
-    color: "#15803d",
+    color: "#EF4444",
   },
   todayDivider: {
     height: 1,
-    backgroundColor: "#86efac",
+    backgroundColor: "#27272A",
     marginVertical: 6,
   },
   todayCountValue: {
     fontSize: 20,
     fontWeight: "800",
-    color: "#16a34a",
-  },
-  collectionCard: {
-    backgroundColor: "#ede9fe", // Soft lavender/purple card as in image
-    borderRadius: 18,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#ddd6fe",
-    shadowColor: "#7c3aed",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  collectionTitle: {
-    fontSize: 18,
-    fontWeight: "400",
-    color: "#334155",
-    marginBottom: 14,
-  },
-  collectionTableHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    backgroundColor: "rgba(255, 255, 255, 0.7)",
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-  },
-  collectionColHeader: {
-    flex: 1.2,
-    fontSize: 12,
-    color: "#64748b",
-    fontWeight: "500",
-  },
-  collectionColCenter: {
-    flex: 1,
-    fontSize: 12,
-    color: "#64748b",
-    fontWeight: "500",
-    textAlign: "center",
-  },
-  collectionColRight: {
-    flex: 1,
-    fontSize: 12,
-    color: "#64748b",
-    fontWeight: "500",
-    textAlign: "right",
-  },
-  collectionTableRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255, 255, 255, 0.5)",
-  },
-  collectionAmountText: {
-    flex: 1.2,
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#5b21b6",
-  },
-  collectionDateText: {
-    flex: 1,
-    fontSize: 12,
-    color: "#475569",
-    textAlign: "center",
-  },
-  collectionTimeText: {
-    flex: 1,
-    fontSize: 12,
-    color: "#475569",
-    textAlign: "right",
-  },
-  collectionEmpty: {
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  collectionEmptyText: {
-    fontSize: 12,
-    color: "#7c3aed",
-    opacity: 0.8,
+    color: "#EF4444",
   },
   sectionHeader: {
     flexDirection: "row",
@@ -493,37 +452,32 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: "500",
-    color: "#334155",
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#0F172A",
   },
   sectionTitlePending: {
-    fontSize: 18,
-    fontWeight: "500",
-    color: "#334155",
-    marginTop: 28,
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#0F172A",
+    marginTop: 24,
     marginBottom: 16,
   },
-  viewAllText: {
-    fontSize: 14,
-    color: "#3b82f6",
-    fontWeight: "500",
-  },
   salesCard: {
-    backgroundColor: "#ffffff",
+    backgroundColor: "#FFFFFF",
     borderRadius: 14,
     padding: 16,
     marginBottom: 12,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    shadowColor: "#2e4396",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
     elevation: 2,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: "#F1F5F9",
   },
   cardCol: {
     flex: 1.5,
@@ -541,31 +495,21 @@ const styles = StyleSheet.create({
   },
   cardColLabel: {
     fontSize: 12,
-    color: "#94a3b8",
+    color: "#94A3B8",
     marginBottom: 4,
   },
   campNameBold: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#2e4396",
-  },
-  saleCountText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#1e3a8a",
+    color: "#0F172A",
   },
   saleAmountMain: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#1e3a8a",
-  },
-  saleCountSub: {
-    fontSize: 11,
-    color: "#64748b",
-    marginTop: 1,
+    color: "#DC2626",
   },
   pendingCard: {
-    backgroundColor: "#f0f7ff", // Nice light blue background as in image
+    backgroundColor: "#FFFFFF",
     borderRadius: 14,
     padding: 16,
     marginBottom: 12,
@@ -573,12 +517,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#dbeafe",
-    shadowColor: "#3b82f6",
+    borderColor: "#F1F5F9",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
   },
   pendingCardLeft: {
     flex: 1.5,
@@ -592,17 +536,17 @@ const styles = StyleSheet.create({
   campNameBoldPending: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#1e3a8a",
+    color: "#0F172A",
   },
   outstandingAmountText: {
     fontSize: 13,
     fontWeight: "500",
-    color: "#1e3a8a",
+    color: "#DC2626",
   },
   outstandingBoldText: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#1e3a8a",
+    color: "#DC2626",
   },
   emptyCard: {
     backgroundColor: "#ffffff",

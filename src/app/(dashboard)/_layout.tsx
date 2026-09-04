@@ -102,7 +102,7 @@ export default function DashboardLayout() {
             alignItems: "center",
             paddingVertical: 2,
           },
-          tabBarActiveTintColor: "#4A60D6",
+          tabBarActiveTintColor: "#DC2626",
           tabBarInactiveTintColor: "#94a3b8",
           tabBarLabel: ({ focused, color, children }) => (
             <Text
