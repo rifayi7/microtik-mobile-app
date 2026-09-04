@@ -3,6 +3,8 @@
 // Set SHOW_GATEWAY_CONFIG_SCREEN to false to connect directly to the configured backend
 export const SHOW_GATEWAY_CONFIG_SCREEN = false;
 
-// NOTE: Set to localhost:3000 for active development/testing. Remember to switch back to Vercel production before final deployment!
+// Automatically uses localhost:3000 in local development (__DEV__ is true when running `npx expo start`),
+// and uses the production Vercel URL in production builds or when EXPO_PUBLIC_GATEWAY_URL is provided.
 export const DEFAULT_GATEWAY_URL =
-  process.env.EXPO_PUBLIC_GATEWAY_URL || "http://localhost:3000";
+  process.env.EXPO_PUBLIC_GATEWAY_URL ||
+  (__DEV__ ? "http://localhost:3000" : "https://microtik-nine.vercel.app");

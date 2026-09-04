@@ -48,16 +48,28 @@ export default function GatewayScreen() {
   const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [loginUsername, setLoginUsername] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [checkingLogin, setCheckingLogin] = useState(true);
 
   useEffect(() => {
     async function checkLogin() {
       try {
         const storedUser = await AsyncStorage.getItem("salesperson_name");
+        const token = await AsyncStorage.getItem("auth_token");
+        const allowedStr = await AsyncStorage.getItem("salesperson_allowed_camps");
+        let allowedCamps: string[] = [];
+        if (allowedStr) {
+          try {
+            const parsed = JSON.parse(allowedStr);
+            if (Array.isArray(parsed)) allowedCamps = parsed;
+          } catch {}
+        }
+
         if (storedUser) {
           setCurrentUser(storedUser);
           if (!overrideShowGateway) {
-            void connectToGateway(gatewayUrl || DEFAULT_GATEWAY_URL);
+            void connectToGateway(gatewayUrl || DEFAULT_GATEWAY_URL, token || undefined, allowedCamps);
             router.replace("/(dashboard)/dashboard-main");
           }
         }
@@ -73,17 +85,22 @@ export default function GatewayScreen() {
   const handleOperatorLogin = async () => {
     const user = loginUsername.trim();
     const pass = loginPassword;
+    setLoginError(null);
 
     if (!user || !pass) {
-      Alert.alert("Error", "Please enter both operator username and password");
+      const msg = "Please enter both username and password";
+      setLoginError(msg);
+      Alert.alert("Error", msg);
       return;
     }
 
+    setIsLoggingIn(true);
     try {
       // 1. Verify credentials against central database
       const activeUrl = gatewayUrl || DEFAULT_GATEWAY_URL;
       const result = await fetchFromGateway<{
         success: boolean;
+        token?: string;
         user?: {
           id?: number;
           username: string;
@@ -125,10 +142,11 @@ export default function GatewayScreen() {
         setCurrentUser(dName);
         setLoginUsername("");
         setLoginPassword("");
+        setLoginError(null);
 
         if (!overrideShowGateway) {
           try {
-            await connectToGateway(activeUrl);
+            await connectToGateway(activeUrl, result.token, result.user.allowedCamps);
           } catch (e) {
             console.warn("Auto gateway connect warning:", e);
           }
@@ -137,7 +155,9 @@ export default function GatewayScreen() {
         return;
       }
 
-      Alert.alert("Login Failed", result.error || "Invalid operator credentials");
+      const errMsg = result.error || "Invalid operator credentials. Please check your username and password.";
+      setLoginError(errMsg);
+      Alert.alert("Login Failed", errMsg);
     } catch {
       // 2. Offline fallback check
       if (
@@ -152,6 +172,7 @@ export default function GatewayScreen() {
         setCurrentUser(dName);
         setLoginUsername("");
         setLoginPassword("");
+        setLoginError(null);
 
         if (!overrideShowGateway) {
           try {
@@ -162,8 +183,12 @@ export default function GatewayScreen() {
           router.replace("/(dashboard)/dashboard-main");
         }
       } else {
-        Alert.alert("Error", "Invalid operator credentials or server offline");
+        const errMsg = "Invalid operator credentials. Please check your username and password.";
+        setLoginError(errMsg);
+        Alert.alert("Login Failed", errMsg);
       }
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -273,13 +298,22 @@ export default function GatewayScreen() {
 
             {/* Card Form */}
             <View style={styles.loginFormCard}>
+              {loginError ? (
+                <View style={styles.loginErrorBanner}>
+                  <Text style={styles.loginErrorText}>{loginError}</Text>
+                </View>
+              ) : null}
+
               <View style={styles.inputWrapperLight}>
                 <TextInput
                   style={styles.inputLight}
                   placeholder="Username"
                   placeholderTextColor="#94a3b8"
                   value={loginUsername}
-                  onChangeText={setLoginUsername}
+                  onChangeText={(text) => {
+                    setLoginUsername(text);
+                    if (loginError) setLoginError(null);
+                  }}
                   autoCapitalize="none"
                   autoCorrect={false}
                 />
@@ -292,7 +326,10 @@ export default function GatewayScreen() {
                   placeholder="Password"
                   placeholderTextColor="#94a3b8"
                   value={loginPassword}
-                  onChangeText={setLoginPassword}
+                  onChangeText={(text) => {
+                    setLoginPassword(text);
+                    if (loginError) setLoginError(null);
+                  }}
                   secureTextEntry
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -300,8 +337,16 @@ export default function GatewayScreen() {
                 <Key size={20} color="#94a3b8" style={styles.inputRightIcon} />
               </View>
 
-              <TouchableOpacity style={styles.loginButtonIndigo} onPress={handleOperatorLogin}>
-                <Text style={styles.loginButtonText}>LOGIN</Text>
+              <TouchableOpacity
+                style={[styles.loginButtonIndigo, isLoggingIn && { opacity: 0.7 }]}
+                onPress={handleOperatorLogin}
+                disabled={isLoggingIn}
+              >
+                {isLoggingIn ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <Text style={styles.loginButtonText}>LOGIN</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -451,6 +496,21 @@ const styles = StyleSheet.create({
   loginFormCard: {
     width: "100%",
     maxWidth: 360,
+  },
+  loginErrorBanner: {
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 14,
+  },
+  loginErrorText: {
+    color: "#DC2626",
+    fontSize: 13,
+    fontWeight: "500",
+    textAlign: "center",
   },
   inputWrapperLight: {
     flexDirection: "row",

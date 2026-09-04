@@ -16,7 +16,11 @@ interface GatewayContextType {
   deleteRouter: (id: string) => Promise<void>;
   connectRouter: (id: string) => Promise<boolean>;
   disconnectRouter: () => Promise<void>;
-  connectToGateway: (url: string) => Promise<{ success: boolean; routerCount: number }>;
+  connectToGateway: (
+    url: string,
+    overrideToken?: string,
+    overrideAllowedCamps?: string[]
+  ) => Promise<{ success: boolean; routerCount: number }>;
 }
 
 const GatewayContext = createContext<GatewayContextType | undefined>(undefined);
@@ -34,9 +38,17 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
   const syncRoutersFromServer = useCallback(async (url: string, activeId: string | null) => {
     try {
       const normalizedUrl = url.replace(/\/+$/, "");
-      const allowedStr = await AsyncStorage.getItem("salesperson_allowed_camps");
+      const token = await AsyncStorage.getItem("auth_token");
       const storedName = await AsyncStorage.getItem("salesperson_name");
       const storedUserId = await AsyncStorage.getItem("salesperson_id");
+      const allowedStr = await AsyncStorage.getItem("salesperson_allowed_camps");
+
+      // DO NOT make unauthenticated router fetch on boot if user is not logged in!
+      if (!token && !storedUserId && (!storedName || storedName === "Unknown")) {
+        setRoutersState([]);
+        setActiveRouterState(null);
+        return;
+      }
 
       let allowedCamps: string[] = [];
       if (allowedStr) {
@@ -61,13 +73,14 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
       );
 
       if (result && result.routers) {
-        let routersList = result.routers;
-        if (allowedCamps.length > 0) {
-          routersList = routersList.filter((r) => {
-            const campName = (r.camp || r.sessionName || "").toLowerCase();
-            return allowedCamps.includes(campName);
-          });
+        const routersList = result.routers;
+        const dynamicallyAllowed = routersList.map((r) => r.camp || r.sessionName).filter(Boolean) as string[];
+        
+        // Keep salesperson_allowed_camps updated with fresh server permissions
+        if (dynamicallyAllowed.length > 0) {
+          await AsyncStorage.setItem("salesperson_allowed_camps", JSON.stringify(dynamicallyAllowed));
         }
+
         setRoutersState(routersList);
         await AsyncStorage.setItem(STORAGE_ROUTERS, JSON.stringify(routersList));
 
@@ -79,9 +92,13 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
             setActiveRouterState(updatedActive);
           } else if (routersList.length > 0) {
             setActiveRouterState(routersList[0]);
+          } else {
+            setActiveRouterState(null);
           }
         } else if (routersList.length > 0) {
           setActiveRouterState(routersList[0]);
+        } else {
+          setActiveRouterState(null);
         }
       }
     } catch (e) {
@@ -99,10 +116,30 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
       try {
         const savedGateway = await AsyncStorage.getItem(STORAGE_GATEWAY_URL);
         let normalizedUrl = DEFAULT_GATEWAY_URL;
+        // If savedGateway is present and not an old production URL when DEFAULT_GATEWAY_URL is localhost, respect it
         if (savedGateway && savedGateway.trim() !== "") {
-          normalizedUrl = savedGateway.replace(/\/+$/, "");
+          const cleanSaved = savedGateway.replace(/\/+$/, "");
+          // If DEFAULT_GATEWAY_URL is explicitly set to localhost, prefer localhost
+          if (DEFAULT_GATEWAY_URL.includes("localhost") && cleanSaved.includes("vercel.app")) {
+            normalizedUrl = DEFAULT_GATEWAY_URL;
+            await AsyncStorage.setItem(STORAGE_GATEWAY_URL, DEFAULT_GATEWAY_URL);
+          } else {
+            normalizedUrl = cleanSaved;
+          }
+        } else {
+          await AsyncStorage.setItem(STORAGE_GATEWAY_URL, DEFAULT_GATEWAY_URL);
         }
         setGatewayState(normalizedUrl);
+
+        const storedUser = await AsyncStorage.getItem("salesperson_name");
+        const storedToken = await AsyncStorage.getItem("auth_token");
+        const isLoggedIn = !!(storedToken || (storedUser && storedUser !== "Unknown"));
+
+        if (!isLoggedIn) {
+          setRoutersState([]);
+          setActiveRouterState(null);
+          return;
+        }
 
         const savedRouters = await AsyncStorage.getItem(STORAGE_ROUTERS);
         const allowedStr = await AsyncStorage.getItem("salesperson_allowed_camps");
@@ -138,8 +175,8 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
           setActiveRouterState(parsedRouters[0]);
         }
 
-        // Proactively sync routers from server on boot
-        if (normalizedUrl) {
+        // Proactively sync routers from server on boot ONLY IF user is logged in
+        if (normalizedUrl && isLoggedIn) {
           void syncRoutersFromServer(normalizedUrl, savedActiveId || null);
         }
       } catch (e) {
@@ -217,7 +254,11 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
     await AsyncStorage.removeItem(STORAGE_ACTIVE_ROUTER_ID);
   };
 
-  const connectToGateway = async (url: string): Promise<{ success: boolean; routerCount: number }> => {
+  const connectToGateway = async (
+    url: string,
+    overrideToken?: string,
+    overrideAllowedCamps?: string[]
+  ): Promise<{ success: boolean; routerCount: number }> => {
     try {
       const cleanUrl = url.trim().replace(/\/+$/, "");
 
@@ -236,17 +277,21 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
       }
 
       // 2. Fetch the routers list from database with auth headers
-      const token = await AsyncStorage.getItem("auth_token");
-      const allowedStr = await AsyncStorage.getItem("salesperson_allowed_camps");
+      const token = overrideToken || (await AsyncStorage.getItem("auth_token"));
       let allowedCamps: string[] = [];
-      if (allowedStr) {
-        try {
-          const parsed = JSON.parse(allowedStr);
-          if (Array.isArray(parsed)) allowedCamps = parsed.map((c) => String(c).toLowerCase());
-        } catch {}
+      if (overrideAllowedCamps && Array.isArray(overrideAllowedCamps)) {
+        allowedCamps = overrideAllowedCamps.map((c) => String(c).toLowerCase());
+      } else {
+        const allowedStr = await AsyncStorage.getItem("salesperson_allowed_camps");
+        if (allowedStr) {
+          try {
+            const parsed = JSON.parse(allowedStr);
+            if (Array.isArray(parsed)) allowedCamps = parsed.map((c) => String(c).toLowerCase());
+          } catch {}
+        }
       }
 
-      const response = await fetch(cleanUrl + "/api/mikrotik/routers", {
+      const response = await fetch(cleanUrl + "/api/mikrotik/routers?verified=true", {
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),

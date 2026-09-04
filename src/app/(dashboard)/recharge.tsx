@@ -76,31 +76,33 @@ export default function RechargeScreen() {
   const [allowedCamps, setAllowedCamps] = useState<string[]>([]);
   const [selectedCamp, setSelectedCamp] = useState("");
 
-  useEffect(() => {
-    async function loadSalesperson() {
-      const user = await AsyncStorage.getItem("salesperson_name");
-      if (user) {
-        setSalesperson(user);
+  useFocusEffect(
+    useCallback(() => {
+      async function refreshSalesperson() {
+        const user = await AsyncStorage.getItem("salesperson_name");
+        if (user) {
+          setSalesperson(user);
+        }
+        const allowedStr = await AsyncStorage.getItem("salesperson_allowed_camps");
+        if (allowedStr) {
+          try {
+            const parsed = JSON.parse(allowedStr);
+            if (Array.isArray(parsed)) {
+              setAllowedCamps(parsed);
+            }
+          } catch {}
+        }
       }
-      const allowedStr = await AsyncStorage.getItem("salesperson_allowed_camps");
-      if (allowedStr) {
-        try {
-          const parsed = JSON.parse(allowedStr);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setAllowedCamps(parsed);
-          }
-        } catch {}
-      }
-    }
-    void loadSalesperson();
-  }, []);
+      void refreshSalesperson();
+    }, [])
+  );
 
   const camps = useMemo(() => {
-    if (allowedCamps.length > 0) {
-      return Array.from(new Set(allowedCamps));
+    const routerCamps = routers.map((r) => r.camp || r.sessionName).filter(Boolean) as string[];
+    if (routerCamps.length > 0) {
+      return Array.from(new Set(routerCamps));
     }
-    const allCamps = routers.map((r) => r.camp || r.sessionName).filter(Boolean) as string[];
-    return Array.from(new Set(allCamps));
+    return Array.from(new Set(allowedCamps));
   }, [routers, allowedCamps]);
 
   // Set default selected camp from allowed list

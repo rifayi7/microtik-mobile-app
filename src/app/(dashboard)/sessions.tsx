@@ -67,35 +67,31 @@ export default function HistoryScreen() {
 
   const [allowedCamps, setAllowedCamps] = useState<string[]>([]);
 
-  // Load allowed camps from storage on mount
-  useEffect(() => {
-    async function initAllowed() {
-      try {
-        const allowedStr = await AsyncStorage.getItem("salesperson_allowed_camps");
-        if (allowedStr) {
-          const parsed = JSON.parse(allowedStr);
-          if (Array.isArray(parsed)) {
-            setAllowedCamps(parsed);
+  // Load allowed camps from storage on mount & focus
+  useFocusEffect(
+    useCallback(() => {
+      async function initAllowed() {
+        try {
+          const allowedStr = await AsyncStorage.getItem("salesperson_allowed_camps");
+          if (allowedStr) {
+            const parsed = JSON.parse(allowedStr);
+            if (Array.isArray(parsed)) {
+              setAllowedCamps(parsed);
+            }
           }
-        }
-      } catch {}
-    }
-    void initAllowed();
-  }, []);
-
-  // Extract distinct camp names from allowedCamps or registered routers
-  const campList = useMemo(() => {
-    if (allowedCamps.length > 0) {
-      return Array.from(new Set(allowedCamps));
-    }
-    const names = new Set<string>();
-    routers.forEach((r) => {
-      const name = r.camp || r.sessionName;
-      if (name) {
-        names.add(name);
+        } catch {}
       }
-    });
-    return Array.from(names);
+      void initAllowed();
+    }, [])
+  );
+
+  // Extract distinct camp names from registered routers or allowedCamps
+  const campList = useMemo(() => {
+    const routerCamps = routers.map((r) => r.camp || r.sessionName).filter(Boolean) as string[];
+    if (routerCamps.length > 0) {
+      return Array.from(new Set(routerCamps));
+    }
+    return Array.from(new Set(allowedCamps));
   }, [routers, allowedCamps]);
 
   const loadHistory = useCallback(async (selectedFilter: DateFilterType = dateFilter, isRefresh = false) => {

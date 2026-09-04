@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useFocusEffect } from "expo-router";
 import {
   ActivityIndicator,
@@ -62,7 +62,7 @@ export default function CouponScreen() {
     const allowedLower = allowedCamps.map((c) => c.toLowerCase());
     return routers.filter((r) => {
       const campName = (r.camp || r.sessionName || "").toLowerCase();
-      return campName && allowedLower.includes(campName);
+      return Boolean(campName) && allowedLower.includes(campName);
     });
   }, [routers, allowedCamps]);
 
