@@ -206,28 +206,6 @@ export default function MoreScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* App Info Section */}
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionHeader}>App Information</Text>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>App Name</Text>
-            <Text style={styles.infoValue}>My WiFi Recharge</Text>
-          </View>
-          <View style={styles.divider} />
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Version</Text>
-            <Text style={styles.infoValue}>v2.0.0</Text>
-          </View>
-          <View style={styles.divider} />
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Status</Text>
-            <View style={styles.onlineBadge}>
-              <View style={styles.onlineDot} />
-              <Text style={styles.onlineText}>Connected</Text>
-            </View>
-          </View>
-        </View>
-
         {/* Clean Logout Button */}
         <TouchableOpacity
           style={styles.logoutBtn}
