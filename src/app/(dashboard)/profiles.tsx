@@ -10,21 +10,46 @@ import {
   Alert,
   ActivityIndicator,
   Modal,
+  TextInput,
+  KeyboardAvoidingView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { LogOut, User, Shield, Info, Smartphone, CheckCircle, Power } from "lucide-react-native";
+import {
+  LogOut,
+  User,
+  Shield,
+  Info,
+  Smartphone,
+  CheckCircle,
+  Power,
+  RotateCcw,
+  AlertCircle,
+  CheckCircle2,
+  X,
+  Building2,
+  Check,
+} from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useGateway } from "../../contexts/gateway-context";
 import { ConfirmModal } from "../../components/confirm-modal";
+import { fetchFromGateway } from "../../lib/api-client";
 
 export default function MoreScreen() {
   const router = useRouter();
-  const { disconnectRouter } = useGateway();
+  const { gatewayUrl, activeRouter, routers, disconnectRouter } = useGateway();
   const [salesperson, setSalesperson] = useState("Unknown");
   const [displayName, setDisplayName] = useState("Salesperson");
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  // Reset HotSpot Session State
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetVoucherCode, setResetVoucherCode] = useState("");
+  const [selectedResetCampId, setSelectedResetCampId] = useState<string>("auto");
+  const [isResetting, setIsResetting] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
+  const [resetSuccess, setResetSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadUser() {
@@ -39,6 +64,69 @@ export default function MoreScreen() {
     }
     void loadUser();
   }, []);
+
+  const handleOpenResetModal = () => {
+    setResetVoucherCode("");
+    setSelectedResetCampId(activeRouter?.id || "auto");
+    setResetError(null);
+    setResetSuccess(null);
+    setShowResetModal(true);
+  };
+
+  const handleExecuteReset = async () => {
+    const trimmedCode = resetVoucherCode.trim();
+    if (!trimmedCode) {
+      setResetError("Please enter a voucher code.");
+      return;
+    }
+
+    setIsResetting(true);
+    setResetError(null);
+    setResetSuccess(null);
+
+    try {
+      const targetRouter =
+        selectedResetCampId !== "auto"
+          ? routers.find((r) => r.id === selectedResetCampId) || activeRouter
+          : undefined;
+
+      const response = await fetchFromGateway<{
+        success: boolean;
+        message?: string;
+        error?: string;
+      }>(
+        gatewayUrl,
+        "/api/mikrotik/users/reset-session",
+        targetRouter || activeRouter,
+        {
+          method: "POST",
+          body: {
+            voucherCode: trimmedCode,
+            routerId: targetRouter?.id,
+          },
+        }
+      );
+
+      if (response.success) {
+        setResetSuccess(
+          response.message ||
+            `Active session for voucher "${trimmedCode}" has been disconnected successfully. The voucher remains valid.`
+        );
+      } else {
+        setResetError(
+          response.error || `Could not disconnect session for voucher "${trimmedCode}".`
+        );
+      }
+    } catch (err) {
+      setResetError(
+        err instanceof Error
+          ? err.message
+          : "Failed to communicate with router. Please check connection."
+      );
+    } finally {
+      setIsResetting(false);
+    }
+  };
 
   const handleConfirmLogout = async () => {
     setShowLogoutModal(false);
@@ -94,6 +182,23 @@ export default function MoreScreen() {
         <View style={styles.sectionCard}>
           <Text style={styles.sectionHeader}>Account & Session</Text>
 
+          {/* Reset User Session Row (Before Logout) */}
+          <TouchableOpacity
+            style={styles.menuRow}
+            onPress={handleOpenResetModal}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.iconWrap, { backgroundColor: "#fff7ed" }]}>
+              <RotateCcw size={18} color="#ea580c" />
+            </View>
+            <View style={styles.menuTextWrap}>
+              <Text style={[styles.menuTitle, { color: "#ea580c" }]}>Reset User Session</Text>
+              <Text style={styles.menuSubtitle}>Disconnect active Wi-Fi session for a voucher</Text>
+            </View>
+          </TouchableOpacity>
+
+          <View style={styles.divider} />
+
           {/* Logout Button Row */}
           <TouchableOpacity
             style={styles.menuRow}
@@ -132,6 +237,176 @@ export default function MoreScreen() {
           </View>
         </View>
       </ScrollView>
+
+      {/* Reset Voucher Modal */}
+      <Modal
+        visible={showResetModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (!isResetting) setShowResetModal(false);
+        }}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.modalBackdrop}
+        >
+          <View style={styles.resetModalContainer}>
+            {/* Header */}
+            <View style={styles.resetModalHeader}>
+              <View style={styles.resetHeaderIconWrap}>
+                <RotateCcw size={20} color="#ea580c" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.resetModalTitle}>Reset User Session</Text>
+                <Text style={styles.resetModalSub}>Disconnect live HotSpot connection</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setShowResetModal(false)}
+                disabled={isResetting}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <X size={20} color="#94a3b8" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Note & explanation */}
+            <View style={styles.noticeBox}>
+              <Text style={styles.noticeText}>
+                This terminates the current Wi-Fi session. The voucher code and its remaining balance will <Text style={{ fontWeight: "700" }}>not</Text> be deleted.
+              </Text>
+            </View>
+
+            {/* Target Camp Selector */}
+            {routers.length > 0 && (
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Target Camp / Router</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.campChipsScroll}
+                >
+                  {/* Auto Detect Chip */}
+                  <TouchableOpacity
+                    style={[
+                      styles.campChip,
+                      selectedResetCampId === "auto" && styles.campChipSelected,
+                    ]}
+                    onPress={() => setSelectedResetCampId("auto")}
+                    activeOpacity={0.7}
+                  >
+                    <Building2
+                      size={14}
+                      color={selectedResetCampId === "auto" ? "#ea580c" : "#64748b"}
+                    />
+                    <Text
+                      style={[
+                        styles.campChipText,
+                        selectedResetCampId === "auto" && styles.campChipTextSelected,
+                      ]}
+                    >
+                      Auto-Detect
+                    </Text>
+                    {selectedResetCampId === "auto" && (
+                      <Check size={13} color="#ea580c" />
+                    )}
+                  </TouchableOpacity>
+
+                  {/* Router / Camp Chips */}
+                  {routers.map((r) => {
+                    const campName = r.camp || r.sessionName || "Camp";
+                    const isSelected = selectedResetCampId === r.id;
+                    return (
+                      <TouchableOpacity
+                        key={r.id}
+                        style={[styles.campChip, isSelected && styles.campChipSelected]}
+                        onPress={() => setSelectedResetCampId(r.id)}
+                        activeOpacity={0.7}
+                      >
+                        <Text
+                          style={[
+                            styles.campChipText,
+                            isSelected && styles.campChipTextSelected,
+                          ]}
+                        >
+                          {campName}
+                        </Text>
+                        {isSelected && <Check size={13} color="#ea580c" />}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
+
+            {/* Input field */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Voucher Code / Username</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Enter voucher code (e.g. ABC123)"
+                placeholderTextColor="#94a3b8"
+                value={resetVoucherCode}
+                onChangeText={(text) => {
+                  setResetVoucherCode(text);
+                  if (resetError) setResetError(null);
+                }}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                editable={!isResetting}
+                returnKeyType="done"
+                onSubmitEditing={handleExecuteReset}
+              />
+            </View>
+
+            {/* Feedback messages */}
+            {resetError && (
+              <View style={styles.errorBanner}>
+                <AlertCircle size={16} color="#dc2626" />
+                <Text style={styles.errorBannerText}>{resetError}</Text>
+              </View>
+            )}
+
+            {resetSuccess && (
+              <View style={styles.successBanner}>
+                <CheckCircle2 size={16} color="#16a34a" />
+                <Text style={styles.successBannerText}>{resetSuccess}</Text>
+              </View>
+            )}
+
+            {/* Action buttons */}
+            <View style={styles.modalActionRow}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => setShowResetModal(false)}
+                disabled={isResetting}
+              >
+                <Text style={styles.cancelButtonText}>
+                  {resetSuccess ? "Done" : "Cancel"}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.resetSubmitButton,
+                  (!resetVoucherCode.trim() || isResetting) && styles.resetSubmitDisabled,
+                ]}
+                onPress={handleExecuteReset}
+                disabled={!resetVoucherCode.trim() || isResetting}
+              >
+                {isResetting ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <>
+                    <RotateCcw size={16} color="#ffffff" />
+                    <Text style={styles.resetSubmitText}>Reset</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       {/* Confirmation Modal */}
       <ConfirmModal
@@ -325,5 +600,178 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "700",
     color: "#1e293b",
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(15, 23, 42, 0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  resetModalContainer: {
+    backgroundColor: "#ffffff",
+    borderRadius: 20,
+    padding: 20,
+    width: "100%",
+    maxWidth: 400,
+    gap: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 8,
+  },
+  resetModalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  resetHeaderIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: "#fff7ed",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  resetModalTitle: {
+    fontSize: 17,
+    fontWeight: "800",
+    color: "#0f172a",
+  },
+  resetModalSub: {
+    fontSize: 12,
+    color: "#64748b",
+  },
+  noticeBox: {
+    backgroundColor: "#f8fafc",
+    padding: 12,
+    borderRadius: 10,
+    borderLeftWidth: 3,
+    borderLeftColor: "#ea580c",
+  },
+  noticeText: {
+    fontSize: 12.5,
+    color: "#475569",
+    lineHeight: 18,
+  },
+  inputGroup: {
+    gap: 6,
+  },
+  inputLabel: {
+    fontSize: 12.5,
+    fontWeight: "700",
+    color: "#334155",
+  },
+  campChipsScroll: {
+    flexDirection: "row",
+    gap: 8,
+    paddingVertical: 2,
+  },
+  campChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: "#f1f5f9",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  campChipSelected: {
+    backgroundColor: "#fff7ed",
+    borderColor: "#ea580c",
+  },
+  campChipText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#475569",
+  },
+  campChipTextSelected: {
+    color: "#ea580c",
+    fontWeight: "700",
+  },
+  textInput: {
+    backgroundColor: "#f8fafc",
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#0f172a",
+    letterSpacing: 0.5,
+  },
+  errorBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#fef2f2",
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#fecaca",
+  },
+  errorBannerText: {
+    flex: 1,
+    fontSize: 12.5,
+    color: "#dc2626",
+    fontWeight: "600",
+  },
+  successBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#f0fdf4",
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#bbf7d0",
+  },
+  successBannerText: {
+    flex: 1,
+    fontSize: 12.5,
+    color: "#16a34a",
+    fontWeight: "600",
+  },
+  modalActionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 4,
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: "#f1f5f9",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cancelButtonText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#475569",
+  },
+  resetSubmitButton: {
+    flex: 1.3,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: "#ea580c",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  resetSubmitDisabled: {
+    backgroundColor: "#fdba74",
+    opacity: 0.7,
+  },
+  resetSubmitText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#ffffff",
   },
 });

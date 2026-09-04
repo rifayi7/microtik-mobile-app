@@ -85,14 +85,12 @@ export default function HistoryScreen() {
     }, [])
   );
 
-  // Extract distinct camp names from registered routers or allowedCamps
+  // Extract distinct camp names from registered routers, allowedCamps, or historical transaction logs
   const campList = useMemo(() => {
     const routerCamps = routers.map((r) => r.camp || r.sessionName).filter(Boolean) as string[];
-    if (routerCamps.length > 0) {
-      return Array.from(new Set(routerCamps));
-    }
-    return Array.from(new Set(allowedCamps));
-  }, [routers, allowedCamps]);
+    const logCamps = logs.map((l) => l.campName).filter(Boolean) as string[];
+    return Array.from(new Set([...routerCamps, ...allowedCamps, ...logCamps]));
+  }, [routers, allowedCamps, logs]);
 
   const loadHistory = useCallback(async (selectedFilter: DateFilterType = dateFilter, isRefresh = false) => {
     if (!isRefresh) {
@@ -269,20 +267,13 @@ export default function HistoryScreen() {
     void loadHistory();
   };
 
-  // Filter logs by allowedCamps and selected camp filter client-side
+  // Filter logs by selected camp filter client-side (all historical sales remain visible)
   const filteredLogs = useMemo(() => {
-    let list = logs;
-    // Strictly restrict to allowed camps if assigned
-    if (allowedCamps.length > 0) {
-      list = list.filter(
-        (item) => item.campName && allowedCamps.some((c) => c.toLowerCase() === item.campName!.toLowerCase())
-      );
-    }
-    if (selectedCampFilter === "all") return list;
-    return list.filter(
+    if (selectedCampFilter === "all") return logs;
+    return logs.filter(
       (item) => item.campName && item.campName.toLowerCase() === selectedCampFilter.toLowerCase()
     );
-  }, [logs, allowedCamps, selectedCampFilter]);
+  }, [logs, selectedCampFilter]);
 
   // Helper to format ISO or SQL date string into clean Dubai time (hh:mm AM/PM)
   const formatDubaiTime = (timestampStr?: string) => {
