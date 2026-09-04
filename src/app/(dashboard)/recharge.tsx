@@ -12,6 +12,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   Platform,
   ScrollView,
   StatusBar,
@@ -659,12 +660,24 @@ export default function RechargeScreen() {
             </View>
           </View>
         )}
+      </ScrollView>
 
-        {step === "success" && lastTransaction && (
-          <View style={styles.successContainer}>
+      {/* Full-Screen Success Modal */}
+      <Modal
+        visible={step === "success" && !!lastTransaction}
+        animationType="fade"
+        presentationStyle="fullScreen"
+        onRequestClose={() => {
+          setStep("entry");
+          setLastTransaction(null);
+        }}
+      >
+        <SafeAreaView style={styles.fullScreenSuccessSafeArea}>
+          <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+          <View style={styles.fullScreenSuccessContainer}>
             <View style={styles.receiptCard}>
               <View style={styles.successCheckIconBg}>
-                <Check size={36} color="#ffffff" />
+                <Check size={38} color="#ffffff" />
               </View>
               <Text style={styles.receiptTitle}>Success!</Text>
               <Text style={styles.receiptSubtitle}>Thank You For Your Recharge</Text>
@@ -672,44 +685,45 @@ export default function RechargeScreen() {
               <View style={styles.confirmDetailsWrapper}>
                 <View style={styles.receiptRow}>
                   <Text style={styles.receiptLabel}>Voucher Code</Text>
-                  <Text style={styles.receiptValueCode}>{lastTransaction.code}</Text>
+                  <Text style={styles.receiptValueCode}>{lastTransaction?.code}</Text>
                 </View>
                 <View style={styles.receiptDivider} />
 
                 <View style={styles.receiptRow}>
                   <Text style={styles.receiptLabel}>Mobile Number</Text>
-                  <Text style={styles.receiptValue}>{lastTransaction.mobile}</Text>
+                  <Text style={styles.receiptValue}>{lastTransaction?.mobile}</Text>
                 </View>
                 <View style={styles.receiptDivider} />
 
                 <View style={styles.receiptRow}>
                   <Text style={styles.receiptLabel}>Validity</Text>
                   <Text style={styles.receiptValue}>
-                    {lastTransaction.validity > 0 ? `${lastTransaction.validity} Days` : "Custom"}
+                    {lastTransaction && lastTransaction.validity > 0 ? `${lastTransaction.validity} Days` : "Custom"}
                   </Text>
                 </View>
                 <View style={styles.receiptDivider} />
 
                 <View style={styles.receiptRow}>
                   <Text style={styles.receiptLabel}>Selected Camp</Text>
-                  <Text style={styles.receiptValue}>{lastTransaction.camp}</Text>
+                  <Text style={styles.receiptValue}>{lastTransaction?.camp}</Text>
                 </View>
                 <View style={styles.receiptDivider} />
 
                 <View style={styles.receiptRow}>
                   <Text style={styles.receiptLabel}>Payment Type</Text>
-                  <Text style={[styles.receiptValue, {textTransform: 'capitalize'}]}>{lastTransaction.paymentType}</Text>
+                  <Text style={[styles.receiptValue, {textTransform: 'capitalize'}]}>{lastTransaction?.paymentType}</Text>
                 </View>
                 <View style={styles.receiptDivider} />
 
                 <View style={styles.receiptRow}>
                   <Text style={styles.receiptLabel}>Time</Text>
-                  <Text style={styles.receiptValue}>{lastTransaction.timestamp}</Text>
+                  <Text style={styles.receiptValue}>{lastTransaction?.timestamp}</Text>
                 </View>
               </View>
 
               <TouchableOpacity 
                 style={styles.doneBtn}
+                activeOpacity={0.8}
                 onPress={() => {
                   setStep("entry");
                   setLastTransaction(null);
@@ -719,8 +733,8 @@ export default function RechargeScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        )}
-      </ScrollView>
+        </SafeAreaView>
+      </Modal>
 
       <NotificationModal
         visible={showNotifications}
@@ -1290,5 +1304,16 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontWeight: "bold",
     fontSize: 15,
+  },
+  fullScreenSuccessSafeArea: {
+    flex: 1,
+    backgroundColor: "#F8FAFC",
+  },
+  fullScreenSuccessContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    backgroundColor: "#F8FAFC",
   },
 });
