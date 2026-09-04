@@ -44,6 +44,14 @@ export default function DashboardLayout() {
     await doDisconnect();
   };
 
+  // Ensure ample bottom clearance so Android gesture navigation bar and iOS home indicator
+  // never overlap or clip tab bar icons and labels
+  const bottomPadding = insets.bottom > 0
+    ? insets.bottom + (Platform.OS === "ios" ? 4 : 8)
+    : (Platform.OS === "android" ? 14 : 8);
+
+  const tabHeight = 56 + bottomPadding;
+
   return (
     <>
       <Tabs
@@ -53,20 +61,24 @@ export default function DashboardLayout() {
             backgroundColor: "#ffffff",
             borderTopWidth: 1,
             borderTopColor: "#e2e8f0",
-            height: Platform.OS === "ios" ? 50 + insets.bottom : (insets.bottom > 0 ? 52 + insets.bottom : 60),
-            paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
-            paddingTop: 8,
+            height: tabHeight,
+            paddingBottom: bottomPadding,
+            paddingTop: 6,
             elevation: 8,
             shadowColor: "#000",
             shadowOffset: { width: 0, height: -2 },
             shadowOpacity: 0.05,
             shadowRadius: 3,
           },
+          tabBarItemStyle: {
+            paddingTop: 2,
+          },
           tabBarActiveTintColor: "#4A60D6",
           tabBarInactiveTintColor: "#94a3b8",
           tabBarLabelStyle: {
             fontSize: 11,
             fontWeight: "600",
+            marginTop: 2,
           },
         }}
       >
