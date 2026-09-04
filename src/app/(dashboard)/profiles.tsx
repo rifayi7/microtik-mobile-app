@@ -119,16 +119,30 @@ export default function MoreScreen() {
       if (response.success) {
         setResetSuccess("Reset successfully.");
       } else {
-        setResetError(
-          response.error || `Could not disconnect session for voucher "${trimmedCode}".`
-        );
+        const rawErr = response.error || "";
+        if (
+          rawErr.toLowerCase().includes("no active session") ||
+          rawErr.toLowerCase().includes("bound mac") ||
+          rawErr.toLowerCase().includes("already")
+        ) {
+          setResetError("Already reset.");
+        } else {
+          setResetError(rawErr || "Failed to reset voucher.");
+        }
       }
     } catch (err) {
-      setResetError(
-        err instanceof Error
-          ? err.message
-          : "Failed to communicate with router. Please check connection."
-      );
+      const errMsg = err instanceof Error ? err.message : "";
+      if (
+        errMsg.toLowerCase().includes("no active session") ||
+        errMsg.toLowerCase().includes("bound mac") ||
+        errMsg.toLowerCase().includes("already")
+      ) {
+        setResetError("Already reset.");
+      } else {
+        setResetError(
+          errMsg || "Failed to communicate with router. Please check connection."
+        );
+      }
     } finally {
       setIsResetting(false);
     }

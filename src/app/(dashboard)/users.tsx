@@ -380,8 +380,13 @@ const styles = StyleSheet.create({
     borderColor: "#FECACA",
   },
   cardDark: {
-    backgroundColor: "#18181B",
-    borderColor: "#27272A",
+    backgroundColor: "#FFFFFF",
+    borderColor: "#E2E8F0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
   },
   cardLightRed: {
     backgroundColor: "#FFF1F2",
