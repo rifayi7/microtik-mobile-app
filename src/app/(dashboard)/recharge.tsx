@@ -678,30 +678,64 @@ export default function RechargeScreen() {
       >
         <StatusBar barStyle="light-content" backgroundColor="#C91414" />
         <View style={styles.fullScreenSuccessContainer}>
-          {/* Top-Left Corner Waves / Accents */}
+          {/* Top-Left Corner Waves / Accents - Subtle curved ribbon layers tucked into corner */}
           <View style={styles.topLeftCornerAccent} pointerEvents="none">
-            <Svg width="160" height="160" viewBox="0 0 160 160">
+            <Svg width="190" height="190" viewBox="0 0 190 190">
+              {/* Outer Deep Dark Red Ambient Layer */}
               <Path
-                d="M-20 -20 L150 -20 Q70 60 -20 150 Z"
-                fill="rgba(255, 255, 255, 0.08)"
+                d="M -30 -30 L 175 -30 C 135 35, 75 95, -30 155 Z"
+                fill="#880B0B"
+                opacity={0.8}
               />
+              {/* Main Sweeping Dark Red Ribbon Band */}
               <Path
-                d="M-20 -20 L110 -20 Q40 40 -20 110 Z"
-                fill="rgba(255, 255, 255, 0.05)"
+                d="M -30 -30 L 130 -30 C 100 30, 50 85, -30 125 Z"
+                fill="#550000"
+                opacity={0.9}
+              />
+              {/* Thin Dark Accent Line Edge */}
+              <Path
+                d="M -30 125 C 50 85, 100 30, 130 -30"
+                stroke="#240000"
+                strokeWidth="2.5"
+                fill="none"
+              />
+              {/* Inner Crimson Shadow Ribbon */}
+              <Path
+                d="M -30 -30 L 85 -30 C 60 15, 20 55, -30 85 Z"
+                fill="#3A0202"
+                opacity={0.85}
               />
             </Svg>
           </View>
 
-          {/* Bottom-Right Corner Waves / Accents */}
+          {/* Bottom-Right Corner Waves / Accents - Subtle curved ribbon layers tucked into corner */}
           <View style={styles.bottomRightCornerAccent} pointerEvents="none">
-            <Svg width="180" height="180" viewBox="0 0 180 180">
+            <Svg width="210" height="210" viewBox="0 0 210 210">
+              {/* Outer Deep Dark Red Ambient Layer */}
               <Path
-                d="M200 200 L30 200 Q110 120 200 30 Z"
-                fill="rgba(255, 255, 255, 0.08)"
+                d="M 240 240 L 35 240 C 75 175, 135 115, 240 55 Z"
+                fill="#880B0B"
+                opacity={0.8}
               />
+              {/* Main Sweeping Dark Red Ribbon Band */}
               <Path
-                d="M200 200 L70 200 Q140 140 200 70 Z"
-                fill="rgba(255, 255, 255, 0.05)"
+                d="M 240 240 L 80 240 C 110 180, 160 125, 240 85 Z"
+                fill="#550000"
+                opacity={0.9}
+              />
+              {/* Thin Dark Accent Line Edge */}
+              <Path
+                d="M 80 240 C 110 180, 160 125, 240 85"
+                stroke="#240000"
+                strokeWidth="2.5"
+                fill="none"
+              />
+              {/* Inner Crimson Shadow Ribbon */}
+              <Path
+                d="M 240 240 L 125 240 C 150 195, 190 155, 240 125 Z"
+                fill="#3A0202"
+                opacity={0.85}
               />
             </Svg>
           </View>
@@ -1325,15 +1359,15 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 0,
     left: 0,
-    width: 160,
-    height: 160,
+    width: 190,
+    height: 190,
   },
   bottomRightCornerAccent: {
     position: "absolute",
     bottom: 0,
     right: 0,
-    width: 180,
-    height: 180,
+    width: 210,
+    height: 210,
   },
   successOuterGlow: {
     width: 104,
