@@ -59,9 +59,10 @@ export default function CouponScreen() {
 
   const visibleRouters = useMemo(() => {
     if (allowedCamps.length === 0) return routers;
+    const allowedLower = allowedCamps.map((c) => c.toLowerCase());
     return routers.filter((r) => {
-      const campName = r.camp || r.sessionName;
-      return campName && allowedCamps.includes(campName);
+      const campName = (r.camp || r.sessionName || "").toLowerCase();
+      return campName && allowedLower.includes(campName);
     });
   }, [routers, allowedCamps]);
 

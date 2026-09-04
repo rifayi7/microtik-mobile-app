@@ -96,23 +96,23 @@ export default function RechargeScreen() {
   }, []);
 
   const camps = useMemo(() => {
-    const allCamps = routers.map((r) => r.camp || r.sessionName).filter(Boolean);
     if (allowedCamps.length > 0) {
-      return allCamps.filter((c) => allowedCamps.includes(c));
+      return Array.from(new Set(allowedCamps));
     }
-    return allCamps;
+    const allCamps = routers.map((r) => r.camp || r.sessionName).filter(Boolean) as string[];
+    return Array.from(new Set(allCamps));
   }, [routers, allowedCamps]);
 
   // Set default selected camp from allowed list
   useEffect(() => {
-    if (camps.length > 0 && (!selectedCamp || !camps.includes(selectedCamp))) {
+    if (camps.length > 0 && (!selectedCamp || !camps.some((c) => c.toLowerCase() === selectedCamp.toLowerCase()))) {
       setSelectedCamp(camps[0]);
     }
   }, [camps, selectedCamp]);
 
   const currentCampRouter = useMemo(() => {
     if (!selectedCamp) return null;
-    return routers.find((r) => (r.camp || r.sessionName) === selectedCamp) || null;
+    return routers.find((r) => (r.camp || r.sessionName)?.toLowerCase() === selectedCamp.toLowerCase()) || null;
   }, [routers, selectedCamp]);
 
   const loadData = useCallback(async () => {

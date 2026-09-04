@@ -83,15 +83,16 @@ export default function HistoryScreen() {
     void initAllowed();
   }, []);
 
-  // Extract distinct camp names from registered routers, strictly scoped to allowedCamps
+  // Extract distinct camp names from allowedCamps or registered routers
   const campList = useMemo(() => {
+    if (allowedCamps.length > 0) {
+      return Array.from(new Set(allowedCamps));
+    }
     const names = new Set<string>();
     routers.forEach((r) => {
       const name = r.camp || r.sessionName;
       if (name) {
-        if (allowedCamps.length === 0 || allowedCamps.some((c) => c.toLowerCase() === name.toLowerCase())) {
-          names.add(name);
-        }
+        names.add(name);
       }
     });
     return Array.from(names);
@@ -401,7 +402,11 @@ export default function HistoryScreen() {
           >
             <Building2 size={12} color="#0284c7" />
             <Text style={styles.campSelectText} numberOfLines={1}>
-              {selectedCampFilter === "all" ? "All Camps" : selectedCampFilter}
+              {allowedCamps.length === 1
+                ? allowedCamps[0]
+                : selectedCampFilter === "all"
+                ? "All Camps"
+                : selectedCampFilter}
             </Text>
             <ChevronDown size={12} color="#64748b" />
           </TouchableOpacity>
@@ -514,33 +519,35 @@ export default function HistoryScreen() {
               </TouchableOpacity>
             </View>
 
-            <TouchableOpacity
-              style={[styles.dropdownItem, selectedCampFilter === "all" && styles.dropdownItemActive]}
-              onPress={() => {
-                setSelectedCampFilter("all");
-                setCampDropdownOpen(false);
-              }}
-            >
-              <View style={styles.dropdownItemLeft}>
-                <Building2 size={16} color={selectedCampFilter === "all" ? "#4A60D6" : "#64748b"} />
-                <Text
-                  style={[
-                    styles.dropdownItemText,
-                    selectedCampFilter === "all" && styles.dropdownItemTextActive,
-                  ]}
-                >
-                  All Camps
-                </Text>
-              </View>
-              {selectedCampFilter === "all" && <Check size={16} color="#4A60D6" />}
-            </TouchableOpacity>
+            {allowedCamps.length !== 1 && (
+              <TouchableOpacity
+                style={[styles.dropdownItem, selectedCampFilter === "all" && styles.dropdownItemActive]}
+                onPress={() => {
+                  setSelectedCampFilter("all");
+                  setCampDropdownOpen(false);
+                }}
+              >
+                <View style={styles.dropdownItemLeft}>
+                  <Building2 size={16} color={selectedCampFilter === "all" ? "#4A60D6" : "#64748b"} />
+                  <Text
+                    style={[
+                      styles.dropdownItemText,
+                      selectedCampFilter === "all" && styles.dropdownItemTextActive,
+                    ]}
+                  >
+                    All Camps
+                  </Text>
+                </View>
+                {selectedCampFilter === "all" && <Check size={16} color="#4A60D6" />}
+              </TouchableOpacity>
+            )}
 
             {campList.map((camp) => (
               <TouchableOpacity
                 key={camp}
                 style={[
                   styles.dropdownItem,
-                  selectedCampFilter === camp && styles.dropdownItemActive,
+                  (selectedCampFilter === camp || (allowedCamps.length === 1 && selectedCampFilter === "all" && campList[0] === camp)) && styles.dropdownItemActive,
                 ]}
                 onPress={() => {
                   setSelectedCampFilter(camp);
@@ -548,17 +555,17 @@ export default function HistoryScreen() {
                 }}
               >
                 <View style={styles.dropdownItemLeft}>
-                  <Building2 size={16} color={selectedCampFilter === camp ? "#4A60D6" : "#64748b"} />
+                  <Building2 size={16} color={(selectedCampFilter === camp || (allowedCamps.length === 1 && selectedCampFilter === "all" && campList[0] === camp)) ? "#4A60D6" : "#64748b"} />
                   <Text
                     style={[
                       styles.dropdownItemText,
-                      selectedCampFilter === camp && styles.dropdownItemTextActive,
+                      (selectedCampFilter === camp || (allowedCamps.length === 1 && selectedCampFilter === "all" && campList[0] === camp)) && styles.dropdownItemTextActive,
                     ]}
                   >
                     {camp}
                   </Text>
                 </View>
-                {selectedCampFilter === camp && <Check size={16} color="#4A60D6" />}
+                {(selectedCampFilter === camp || (allowedCamps.length === 1 && selectedCampFilter === "all" && campList[0] === camp)) && <Check size={16} color="#4A60D6" />}
               </TouchableOpacity>
             ))}
           </View>

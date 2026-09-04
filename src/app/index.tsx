@@ -104,6 +104,9 @@ export default function GatewayScreen() {
 
       if (result.success && result.user) {
         const dName = result.user.displayName || result.user.username;
+        if (result.token) {
+          await AsyncStorage.setItem("auth_token", result.token);
+        }
         if (result.user.id) {
           await AsyncStorage.setItem("salesperson_id", String(result.user.id));
         }

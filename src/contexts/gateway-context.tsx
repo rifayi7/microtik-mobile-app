@@ -34,6 +34,15 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
   const syncRoutersFromServer = useCallback(async (url: string, activeId: string | null) => {
     try {
       const normalizedUrl = url.replace(/\/+$/, "");
+      const allowedStr = await AsyncStorage.getItem("salesperson_allowed_camps");
+      let allowedCamps: string[] = [];
+      if (allowedStr) {
+        try {
+          const parsed = JSON.parse(allowedStr);
+          if (Array.isArray(parsed)) allowedCamps = parsed.map((c) => String(c).toLowerCase());
+        } catch {}
+      }
+
       const result = await fetchFromGateway<{ routers: MikrotikRouterConfig[] }>(
         normalizedUrl,
         "/api/mikrotik/routers?verified=true",
@@ -42,16 +51,27 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
       );
 
       if (result && result.routers) {
-        setRoutersState(result.routers);
-        await AsyncStorage.setItem(STORAGE_ROUTERS, JSON.stringify(result.routers));
+        let routersList = result.routers;
+        if (allowedCamps.length > 0) {
+          routersList = routersList.filter((r) => {
+            const campName = (r.camp || r.sessionName || "").toLowerCase();
+            return allowedCamps.includes(campName);
+          });
+        }
+        setRoutersState(routersList);
+        await AsyncStorage.setItem(STORAGE_ROUTERS, JSON.stringify(routersList));
 
         // Sync active router details if it changed
         const currentActiveId = activeId;
         if (currentActiveId) {
-          const updatedActive = result.routers.find((r) => r.id === currentActiveId);
+          const updatedActive = routersList.find((r) => r.id === currentActiveId);
           if (updatedActive) {
             setActiveRouterState(updatedActive);
+          } else if (routersList.length > 0) {
+            setActiveRouterState(routersList[0]);
           }
+        } else if (routersList.length > 0) {
+          setActiveRouterState(routersList[0]);
         }
       }
     } catch (e) {
@@ -186,16 +206,36 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
         throw new Error(healthPayload.error ?? "Database connectivity issue on backend");
       }
 
-      // 2. Fetch the routers list from database
+      // 2. Fetch the routers list from database with auth headers
+      const token = await AsyncStorage.getItem("auth_token");
+      const allowedStr = await AsyncStorage.getItem("salesperson_allowed_camps");
+      let allowedCamps: string[] = [];
+      if (allowedStr) {
+        try {
+          const parsed = JSON.parse(allowedStr);
+          if (Array.isArray(parsed)) allowedCamps = parsed.map((c) => String(c).toLowerCase());
+        } catch {}
+      }
+
       const response = await fetch(cleanUrl + "/api/mikrotik/routers", {
-        headers: { "Content-Type": "application/json" }
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
       });
       if (!response.ok) {
         throw new Error("Failed to load routers list from server");
       }
       
       const payload = await response.json();
-      const routersList = payload.routers || [];
+      let routersList: MikrotikRouterConfig[] = payload.routers || [];
+
+      if (allowedCamps.length > 0) {
+        routersList = routersList.filter((r) => {
+          const campName = (r.camp || r.sessionName || "").toLowerCase();
+          return allowedCamps.includes(campName);
+        });
+      }
 
       // Save gateway URL
       setGatewayState(cleanUrl);

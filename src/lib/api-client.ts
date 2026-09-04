@@ -1,3 +1,5 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 export interface MikrotikRouterConfig {
   id: string;
   sessionName: string;
@@ -36,10 +38,13 @@ export async function fetchFromGateway<T>(
   }
 
   try {
+    const token = await AsyncStorage.getItem("auth_token");
+
     const fetchOptions: RequestInit = {
       method: options.method ?? "POST",
       headers: {
         "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
     };
 
