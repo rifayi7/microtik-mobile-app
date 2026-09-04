@@ -95,9 +95,24 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
         setGatewayState(normalizedUrl);
 
         const savedRouters = await AsyncStorage.getItem(STORAGE_ROUTERS);
+        const allowedStr = await AsyncStorage.getItem("salesperson_allowed_camps");
+        let allowedCamps: string[] = [];
+        if (allowedStr) {
+          try {
+            const parsed = JSON.parse(allowedStr);
+            if (Array.isArray(parsed)) allowedCamps = parsed.map((c) => String(c).toLowerCase());
+          } catch {}
+        }
+
         let parsedRouters: MikrotikRouterConfig[] = [];
         if (savedRouters) {
           parsedRouters = JSON.parse(savedRouters);
+          if (allowedCamps.length > 0) {
+            parsedRouters = parsedRouters.filter((r) => {
+              const campName = (r.camp || r.sessionName || "").toLowerCase();
+              return allowedCamps.includes(campName);
+            });
+          }
           setRoutersState(parsedRouters);
         }
 
@@ -106,7 +121,11 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
           const active = parsedRouters.find((r) => r.id === savedActiveId);
           if (active) {
             setActiveRouterState(active);
+          } else if (parsedRouters.length > 0) {
+            setActiveRouterState(parsedRouters[0]);
           }
+        } else if (parsedRouters.length > 0) {
+          setActiveRouterState(parsedRouters[0]);
         }
 
         // Proactively sync routers from server on boot
