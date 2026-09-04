@@ -207,6 +207,20 @@ export default function HistoryScreen() {
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
   };
 
+  const formatDateDMY = (date: Date) => {
+    const pad = (n: number) => n.toString().padStart(2, "0");
+    return `${pad(date.getDate())}-${pad(date.getMonth() + 1)}-${date.getFullYear()}`;
+  };
+
+  const formatToDMY = (ymdStr?: string) => {
+    if (!ymdStr) return "";
+    const parts = ymdStr.split("-");
+    if (parts.length === 3) {
+      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+    return ymdStr;
+  };
+
   const handleOpenCustomModal = () => {
     if (!customStartDate) {
       const today = new Date();
@@ -351,7 +365,9 @@ export default function HistoryScreen() {
           <View style={[styles.metaItem, { marginLeft: "auto" }]}>
             <Clock size={10} color="#94a3b8" />
             <Text style={styles.metaTimeText}>
-              {dateFilter === "today" || dateFilter === "yesterday" ? formattedTime : `${formattedDate} ${formattedTime}`}
+              {dateFilter === "today" || dateFilter === "yesterday"
+                ? formattedTime
+                : `${formatToDMY(formattedDate)} ${formattedTime}`}
             </Text>
           </View>
         </View>
@@ -443,7 +459,7 @@ export default function HistoryScreen() {
             >
               <Calendar size={11} color={dateFilter === "custom" ? "#ffffff" : "#64748b"} />
               <Text style={[styles.datePillText, dateFilter === "custom" && styles.datePillTextActive]}>
-                {dateFilter === "custom" && customStartDate ? `${customStartDate.slice(5)}...` : "Custom"}
+                {dateFilter === "custom" && customStartDate ? `${formatToDMY(customStartDate).slice(0, 5)}...` : "Custom"}
               </Text>
             </TouchableOpacity>
 
@@ -595,7 +611,7 @@ export default function HistoryScreen() {
               >
                 <Calendar size={16} color="#DC2626" />
                 <Text style={styles.datePickerTriggerText}>
-                  {customStartDate || formatDateYMD(startDateObj)}
+                  {customStartDate ? formatToDMY(customStartDate) : formatDateDMY(startDateObj)}
                 </Text>
                 <ChevronDown size={14} color="#64748b" style={{ marginLeft: "auto" }} />
               </TouchableOpacity>
@@ -617,7 +633,7 @@ export default function HistoryScreen() {
               >
                 <Calendar size={16} color="#DC2626" />
                 <Text style={styles.datePickerTriggerText}>
-                  {customEndDate || formatDateYMD(endDateObj)}
+                  {customEndDate ? formatToDMY(customEndDate) : formatDateDMY(endDateObj)}
                 </Text>
                 <ChevronDown size={14} color="#64748b" style={{ marginLeft: "auto" }} />
               </TouchableOpacity>
