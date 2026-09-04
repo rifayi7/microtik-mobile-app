@@ -14,6 +14,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import {
   ActivityIndicator,
   Alert,
+  Dimensions,
   Modal,
   Platform,
   ScrollView,
@@ -25,6 +26,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Svg, { Path } from "react-native-svg";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useGateway } from "../../contexts/gateway-context";
 import { fetchFromGateway } from "../../lib/api-client";
@@ -674,8 +676,36 @@ export default function RechargeScreen() {
           setLastTransaction(null);
         }}
       >
-        <StatusBar barStyle="light-content" backgroundColor="#DC2626" />
+        <StatusBar barStyle="light-content" backgroundColor="#C91414" />
         <View style={styles.fullScreenSuccessContainer}>
+          {/* Top-Left Corner Waves / Accents */}
+          <View style={styles.topLeftCornerAccent} pointerEvents="none">
+            <Svg width="160" height="160" viewBox="0 0 160 160">
+              <Path
+                d="M-20 -20 L150 -20 Q70 60 -20 150 Z"
+                fill="rgba(255, 255, 255, 0.08)"
+              />
+              <Path
+                d="M-20 -20 L110 -20 Q40 40 -20 110 Z"
+                fill="rgba(255, 255, 255, 0.05)"
+              />
+            </Svg>
+          </View>
+
+          {/* Bottom-Right Corner Waves / Accents */}
+          <View style={styles.bottomRightCornerAccent} pointerEvents="none">
+            <Svg width="180" height="180" viewBox="0 0 180 180">
+              <Path
+                d="M200 200 L30 200 Q110 120 200 30 Z"
+                fill="rgba(255, 255, 255, 0.08)"
+              />
+              <Path
+                d="M200 200 L70 200 Q140 140 200 70 Z"
+                fill="rgba(255, 255, 255, 0.05)"
+              />
+            </Svg>
+          </View>
+
           {/* Top Decorative Success Icon */}
           <View style={styles.successOuterGlow}>
             <View style={styles.successInnerCircle}>
@@ -1288,6 +1318,22 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 22,
+    position: "relative",
+    overflow: "hidden",
+  },
+  topLeftCornerAccent: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: 160,
+    height: 160,
+  },
+  bottomRightCornerAccent: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 180,
+    height: 180,
   },
   successOuterGlow: {
     width: 104,
