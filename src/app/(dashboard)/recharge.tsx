@@ -26,6 +26,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useGateway } from "../../contexts/gateway-context";
 import { fetchFromGateway } from "../../lib/api-client";
 import { formatCurrency } from "../../lib/format";
+import { NotificationModal } from "../../components/notification-modal";
 
 interface PlanGroup {
   days: number;
@@ -55,6 +56,7 @@ export default function RechargeScreen() {
   const [step, setStep] = useState<"entry" | "confirmation" | "success">("entry");
   const [showCampDropdown, setShowCampDropdown] = useState(false);
   const [showValidityDropdown, setShowValidityDropdown] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   const [lastTransaction, setLastTransaction] = useState<{
     code: string;
@@ -299,9 +301,11 @@ export default function RechargeScreen() {
           <Text style={styles.welcomeSubtitle}>Welcome</Text>
         </View>
         <View style={styles.headerRightControls}>
-          <TouchableOpacity style={styles.bellButton}>
+          <TouchableOpacity 
+            style={styles.bellButton}
+            onPress={() => setShowNotifications(true)}
+          >
             <Bell size={20} color="#334155" />
-            <View style={styles.bellBadge} />
           </TouchableOpacity>
           <View style={styles.profileBadge}>
             <View style={styles.profileBadgeTextContainer}>
@@ -717,6 +721,11 @@ export default function RechargeScreen() {
           </View>
         )}
       </ScrollView>
+
+      <NotificationModal
+        visible={showNotifications}
+        onClose={() => setShowNotifications(false)}
+      />
     </SafeAreaView>
   );
 }

@@ -15,6 +15,7 @@ import { Bell, Wifi, Building2, Wallet, Receipt, ChevronRight } from "lucide-rea
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useGateway } from "../../contexts/gateway-context";
 import { fetchFromGateway } from "../../lib/api-client";
+import { NotificationModal } from "../../components/notification-modal";
 
 interface SalespersonStats {
   totalRevenue: number;
@@ -64,6 +65,7 @@ export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   const loadSummaryData = useCallback(async (currentSalesperson?: string, isRefresh = false) => {
     if (!isRefresh) setLoading(true);
@@ -147,11 +149,19 @@ export default function DashboardScreen() {
           <Text style={styles.welcomeTitle}>Hello {displayName}</Text>
           <Text style={styles.welcomeSub}>Welcome</Text>
         </View>
-        <TouchableOpacity style={styles.bellButton}>
+        <TouchableOpacity
+          style={styles.bellButton}
+          onPress={() => setShowNotifications(true)}
+          activeOpacity={0.7}
+        >
           <Bell size={22} color="#0f172a" />
-          <View style={styles.bellBadge} />
         </TouchableOpacity>
       </View>
+
+      <NotificationModal
+        visible={showNotifications}
+        onClose={() => setShowNotifications(false)}
+      />
 
       <ScrollView
         contentContainerStyle={styles.scrollContainer}
@@ -240,7 +250,6 @@ export default function DashboardScreen() {
                 <Text style={styles.cardColLabel}>Monthly sale</Text>
                 <Text style={styles.saleAmountMain}>AED {Number(item.monthlySale || 0).toFixed(0)}</Text>
               </View>
-              <ChevronRight size={18} color="#94a3b8" style={{ marginLeft: 6 }} />
             </View>
           ))
         )}
@@ -266,7 +275,6 @@ export default function DashboardScreen() {
                   AED <Text style={styles.outstandingBoldText}>{item.outstanding}</Text>
                 </Text>
               </View>
-              <ChevronRight size={18} color="#94a3b8" style={{ marginLeft: 8 }} />
             </View>
           ))
         )}
@@ -306,8 +314,8 @@ const styles = StyleSheet.create({
   },
   welcomeTitle: {
     fontSize: 20,
-    fontWeight: "600",
-    color: "#2e4396", // Dark blue from image
+    fontWeight: "700",
+    color: "#0F172A", // Bold black color
   },
   welcomeSub: {
     fontSize: 15,

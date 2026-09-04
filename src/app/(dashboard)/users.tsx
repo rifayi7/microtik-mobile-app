@@ -15,6 +15,7 @@ import { Bell, ChevronDown, Building2, Ticket } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useGateway } from "../../contexts/gateway-context";
 import { fetchFromGateway } from "../../lib/api-client";
+import { NotificationModal } from "../../components/notification-modal";
 
 interface PlanCount {
   days: number;
@@ -25,6 +26,7 @@ export default function CouponScreen() {
   const router = useRouter();
   const { gatewayUrl, routers } = useGateway();
   const [salesperson, setSalesperson] = useState("Salesperson");
+  const [showNotifications, setShowNotifications] = useState(false);
   const [campPlans, setCampPlans] = useState<Record<string, PlanCount[]>>({});
   const [selectedCampId, setSelectedCampId] = useState<string | null>(null);
   const [loadingCampId, setLoadingCampId] = useState<string | null>(null);
@@ -118,9 +120,11 @@ export default function CouponScreen() {
           <Text style={styles.welcomeTitle}>Hello {salesperson}</Text>
           <Text style={styles.welcomeSub}>Available Coupon Stock</Text>
         </View>
-        <TouchableOpacity style={styles.bellButton}>
+        <TouchableOpacity 
+          style={styles.bellButton}
+          onPress={() => setShowNotifications(true)}
+        >
           <Bell size={24} color="#0f172a" />
-          <View style={styles.bellBadge} />
         </TouchableOpacity>
       </View>
 
@@ -224,6 +228,11 @@ export default function CouponScreen() {
           })
         )}
       </ScrollView>
+
+      <NotificationModal
+        visible={showNotifications}
+        onClose={() => setShowNotifications(false)}
+      />
     </SafeAreaView>
   );
 }
