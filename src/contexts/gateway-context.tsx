@@ -116,13 +116,11 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
       try {
         const savedGateway = await AsyncStorage.getItem(STORAGE_GATEWAY_URL);
         let normalizedUrl = DEFAULT_GATEWAY_URL;
-        // If savedGateway is present and not an old production URL when DEFAULT_GATEWAY_URL is localhost, respect it
         if (savedGateway && savedGateway.trim() !== "") {
           const cleanSaved = savedGateway.replace(/\/+$/, "");
-          if (
-            (DEFAULT_GATEWAY_URL.includes("192.168.") || DEFAULT_GATEWAY_URL.includes("localhost")) &&
-            (cleanSaved.includes("vercel.app") || cleanSaved.includes("localhost"))
-          ) {
+          if (cleanSaved === DEFAULT_GATEWAY_URL) {
+            normalizedUrl = cleanSaved;
+          } else if (DEFAULT_GATEWAY_URL.includes("localhost") || DEFAULT_GATEWAY_URL.includes("127.0.0.1")) {
             normalizedUrl = DEFAULT_GATEWAY_URL;
             await AsyncStorage.setItem(STORAGE_GATEWAY_URL, DEFAULT_GATEWAY_URL);
           } else {

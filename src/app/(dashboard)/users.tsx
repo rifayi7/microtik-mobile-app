@@ -68,8 +68,10 @@ export default function CouponScreen() {
     if (allowedCamps.length === 0) return routers;
     const allowedLower = allowedCamps.map((c) => c.toLowerCase());
     return routers.filter((r) => {
-      const campName = (r.camp || r.sessionName || "").toLowerCase();
-      return Boolean(campName) && allowedLower.includes(campName);
+      const matchId = r.id && allowedLower.includes(r.id.toLowerCase());
+      const matchSession = r.sessionName && allowedLower.includes(r.sessionName.toLowerCase());
+      const matchCamp = r.camp && allowedLower.includes(r.camp.toLowerCase());
+      return matchId || matchSession || matchCamp;
     });
   }, [routers, allowedCamps]);
 
@@ -154,7 +156,7 @@ export default function CouponScreen() {
             const isExpanded = selectedCampId === routerItem.id;
             const plansList = campPlans[routerItem.id] || [];
             const isLoadingPlans = loadingCampId === routerItem.id;
-            const campName = routerItem.camp || routerItem.sessionName;
+            const campName = routerItem.sessionName || routerItem.camp;
             const totalAvailable = plansList.reduce((sum, p) => sum + p.available_count, 0);
 
             return (

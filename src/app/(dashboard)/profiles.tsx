@@ -267,7 +267,7 @@ export default function MoreScreen() {
                 >
                   {/* Router / Camp Chips */}
                   {routers.map((r) => {
-                    const campName = r.camp || r.sessionName || "Camp";
+                    const campName = r.sessionName || r.camp || "Camp";
                     const isSelected = selectedResetCampId === r.id;
                     return (
                       <TouchableOpacity

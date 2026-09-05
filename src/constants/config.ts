@@ -4,4 +4,4 @@
 export const SHOW_GATEWAY_CONFIG_SCREEN = false;
 
 export const DEFAULT_GATEWAY_URL =
-  process.env.EXPO_PUBLIC_GATEWAY_URL || "https://microtik-nine.vercel.app";
+  process.env.EXPO_PUBLIC_GATEWAY_URL || "http://localhost:3000";

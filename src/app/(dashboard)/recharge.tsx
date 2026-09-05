@@ -107,25 +107,34 @@ export default function RechargeScreen() {
     }, [router])
   );
 
-  const camps = useMemo(() => {
-    const routerCamps = routers.map((r) => r.camp || r.sessionName).filter(Boolean) as string[];
-    if (routerCamps.length > 0) {
-      return Array.from(new Set(routerCamps));
+  // Routers list mapped to selectable items using permanent router.id
+  const selectableRouters = useMemo(() => {
+    if (routers && routers.length > 0) {
+      return routers;
     }
-    return Array.from(new Set(allowedCamps));
-  }, [routers, allowedCamps]);
+    return [];
+  }, [routers]);
 
-  // Set default selected camp from allowed list
+  const [selectedRouterId, setSelectedRouterId] = useState<string | null>(null);
+
+  // Auto-select first router ID on mount or list update
   useEffect(() => {
-    if (camps.length > 0 && (!selectedCamp || !camps.some((c) => c.toLowerCase() === selectedCamp.toLowerCase()))) {
-      setSelectedCamp(camps[0]);
+    if (selectableRouters.length > 0) {
+      if (!selectedRouterId || !selectableRouters.some((r) => r.id === selectedRouterId)) {
+        setSelectedRouterId(selectableRouters[0].id);
+      }
     }
-  }, [camps, selectedCamp]);
+  }, [selectableRouters, selectedRouterId]);
 
   const currentCampRouter = useMemo(() => {
-    if (!selectedCamp) return null;
-    return routers.find((r) => (r.camp || r.sessionName)?.toLowerCase() === selectedCamp.toLowerCase()) || null;
-  }, [routers, selectedCamp]);
+    if (!selectedRouterId) return selectableRouters[0] || activeRouter;
+    return selectableRouters.find((r) => r.id === selectedRouterId) || activeRouter;
+  }, [selectableRouters, selectedRouterId, activeRouter]);
+
+  const selectedCampDisplayName = useMemo(() => {
+    if (!currentCampRouter) return "Select Camp";
+    return currentCampRouter.sessionName || currentCampRouter.camp || "Camp";
+  }, [currentCampRouter]);
 
   const loadData = useCallback(async () => {
     if (!currentCampRouter) {
@@ -191,17 +200,16 @@ export default function RechargeScreen() {
     setSelectedPlan(days);
   };
 
-  const handleSelectCamp = async (campName: string) => {
-    setSelectedCamp(campName);
+  const handleSelectCamp = async (targetRouter: typeof selectableRouters[0]) => {
+    setSelectedRouterId(targetRouter.id);
     setShowCampDropdown(false);
     
-    const targetRouter = routers.find((r) => (r.camp || r.sessionName) === campName);
-    if (targetRouter && targetRouter.id !== activeRouter?.id) {
+    if (targetRouter.id !== activeRouter?.id) {
       try {
         setLoading(true);
         const success = await connectRouter(targetRouter.id);
         if (!success) {
-          Alert.alert("Error", `Failed to switch to camp router: ${campName}`);
+          Alert.alert("Error", `Failed to switch to camp router: ${targetRouter.sessionName || targetRouter.camp}`);
         }
       } catch (err) {
         Alert.alert("Error", err instanceof Error ? err.message : "Failed to switch camp");
@@ -229,8 +237,8 @@ export default function RechargeScreen() {
       }
     }
 
-    // Ensure we use the router matching the selected camp
-    const targetRouter = routers.find((r) => (r.camp || r.sessionName) === selectedCamp) || activeRouter;
+    // Ensure we use the current selected router by permanent ID
+    const targetRouter = currentCampRouter || activeRouter;
     if (!targetRouter) return;
 
     setProcessingCode(rechargeMode === "manual" ? "manual" : String(selectedPlan));
@@ -363,9 +371,9 @@ export default function RechargeScreen() {
                 }}
               >
                 <View style={styles.dropdownSelectorLeft}>
-                  <Building2 size={18} color={selectedCamp ? "#DC2626" : "#94a3b8"} style={styles.fieldIcon} />
-                  <Text style={[styles.dropdownSelectorText, !selectedCamp && { color: "#94a3b8" }]} numberOfLines={1}>
-                    {selectedCamp || "Select Camp"}
+                  <Building2 size={18} color={selectedRouterId ? "#DC2626" : "#94a3b8"} style={styles.fieldIcon} />
+                  <Text style={[styles.dropdownSelectorText, !selectedRouterId && { color: "#94a3b8" }]} numberOfLines={1}>
+                    {selectedCampDisplayName}
                   </Text>
                 </View>
                 <ChevronDown size={18} color="#64748B" />
@@ -373,13 +381,18 @@ export default function RechargeScreen() {
 
               {showCampDropdown && (
                 <View style={styles.dropdownOptionsContainer}>
-                  {camps.map((camp, index) => (
+                  {selectableRouters.map((routerItem) => (
                     <TouchableOpacity 
-                      key={index} 
+                      key={routerItem.id} 
                       style={styles.dropdownOptionItem}
-                      onPress={() => void handleSelectCamp(camp)}
+                      onPress={() => void handleSelectCamp(routerItem)}
                     >
-                      <Text style={styles.dropdownOptionText}>{camp}</Text>
+                      <Text style={[
+                        styles.dropdownOptionText,
+                        selectedRouterId === routerItem.id && { color: "#DC2626", fontWeight: "700" }
+                      ]}>
+                        {routerItem.sessionName || routerItem.camp || "Camp"}
+                      </Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -492,7 +505,7 @@ export default function RechargeScreen() {
               const isOutOfStock = selectedPlan > 0 && availableCount <= 0;
               const isFormIncomplete =
                 mobileNumber.trim().length !== 10 ||
-                !selectedCamp ||
+                !selectedRouterId ||
                 selectedPlan === 0 ||
                 isOutOfStock ||
                 loadingHistory;
@@ -502,7 +515,7 @@ export default function RechargeScreen() {
                   {isOutOfStock && (
                     <View style={{ marginBottom: 10, padding: 10, backgroundColor: "#fee2e2", borderRadius: 8, borderWidth: 1, borderColor: "#fca5a5" }}>
                       <Text style={{ color: "#b91c1c", fontSize: 12, fontWeight: "600", textAlign: "center" }}>
-                        ⚠️ Out of Stock: No available voucher codes for {selectedPlan}-Days plan in {selectedCamp}.
+                        ⚠️ Out of Stock: No available voucher codes for {selectedPlan}-Days plan in {selectedCampDisplayName}.
                       </Text>
                     </View>
                   )}
@@ -513,7 +526,7 @@ export default function RechargeScreen() {
                     ]}
                     disabled={isFormIncomplete}
                     onPress={async () => {
-                      if (!selectedCamp) {
+                      if (!selectedRouterId) {
                         Alert.alert("Camp Required", "Please select a camp first.");
                         return;
                       }
@@ -582,7 +595,7 @@ export default function RechargeScreen() {
               <View style={styles.confirmDetailsWrapper}>
                 <View style={styles.receiptRow}>
                   <Text style={styles.receiptLabel}>Selected Camp</Text>
-                  <Text style={styles.receiptValue}>{selectedCamp}</Text>
+                  <Text style={styles.receiptValue}>{selectedCampDisplayName}</Text>
                 </View>
                 <View style={styles.receiptDivider} />
 

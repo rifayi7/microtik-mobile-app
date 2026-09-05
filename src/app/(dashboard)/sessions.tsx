@@ -38,6 +38,7 @@ interface SalesLog {
   seller: string;
   price?: number;
   campName?: string;
+  routerId?: string;
 }
 
 type DateFilterType = "today" | "yesterday" | "custom" | "all";
@@ -94,12 +95,30 @@ export default function HistoryScreen() {
     }, [router])
   );
 
-  // Extract distinct camp names from registered routers, allowedCamps, or historical transaction logs
+  // Extract distinct camp options mapped from registered routers (by id & name) and transaction logs
   const campList = useMemo(() => {
-    const routerCamps = routers.map((r) => r.camp || r.sessionName).filter(Boolean) as string[];
-    const logCamps = logs.map((l) => l.campName).filter(Boolean) as string[];
-    return Array.from(new Set([...routerCamps, ...allowedCamps, ...logCamps]));
-  }, [routers, allowedCamps, logs]);
+    const routerItems = routers.map((r) => ({
+      id: r.id,
+      name: r.sessionName || r.camp || "Camp",
+    }));
+
+    const distinct = new Map<string, string>();
+    distinct.set("all", "All Camps");
+
+    for (const r of routerItems) {
+      distinct.set(r.id, r.name);
+    }
+
+    for (const l of logs) {
+      if (l.routerId && !distinct.has(l.routerId)) {
+        distinct.set(l.routerId, l.campName || "Camp");
+      } else if (l.campName && !distinct.has(l.campName)) {
+        distinct.set(l.campName, l.campName);
+      }
+    }
+
+    return Array.from(distinct.entries()).map(([key, label]) => ({ key, label }));
+  }, [routers, logs]);
 
   const loadHistory = useCallback(async (selectedFilter: DateFilterType = dateFilter, isRefresh = false) => {
     if (!isRefresh) {
@@ -293,9 +312,12 @@ export default function HistoryScreen() {
   // Filter logs by selected camp filter client-side (all historical sales remain visible)
   const filteredLogs = useMemo(() => {
     if (selectedCampFilter === "all") return logs;
-    return logs.filter(
-      (item) => item.campName && item.campName.toLowerCase() === selectedCampFilter.toLowerCase()
-    );
+    const target = selectedCampFilter.toLowerCase();
+    return logs.filter((item) => {
+      const matchRouterId = item.routerId && item.routerId.toLowerCase() === target;
+      const matchCampName = item.campName && item.campName.toLowerCase() === target;
+      return matchRouterId || matchCampName;
+    });
   }, [logs, selectedCampFilter]);
 
   // Helper to format ISO or SQL date string into clean Dubai time (hh:mm AM/PM)
@@ -414,11 +436,7 @@ export default function HistoryScreen() {
           >
             <Building2 size={12} color="#DC2626" />
             <Text style={styles.campSelectText} numberOfLines={1}>
-              {allowedCamps.length === 1
-                ? allowedCamps[0]
-                : selectedCampFilter === "all"
-                ? "All Camps"
-                : selectedCampFilter}
+              {campList.find((i) => i.key === selectedCampFilter)?.label || (selectedCampFilter === "all" ? "All Camps" : selectedCampFilter)}
             </Text>
             <ChevronDown size={12} color="#64748b" />
           </TouchableOpacity>
@@ -554,30 +572,30 @@ export default function HistoryScreen() {
               </TouchableOpacity>
             )}
 
-            {campList.map((camp) => (
+            {campList.filter((item) => item.key !== "all").map((item) => (
               <TouchableOpacity
-                key={camp}
+                key={item.key}
                 style={[
                   styles.dropdownItem,
-                  (selectedCampFilter === camp || (allowedCamps.length === 1 && selectedCampFilter === "all" && campList[0] === camp)) && styles.dropdownItemActive,
+                  (selectedCampFilter === item.key || selectedCampFilter === item.label) && styles.dropdownItemActive,
                 ]}
                 onPress={() => {
-                  setSelectedCampFilter(camp);
+                  setSelectedCampFilter(item.key);
                   setCampDropdownOpen(false);
                 }}
               >
                 <View style={styles.dropdownItemLeft}>
-                  <Building2 size={16} color={(selectedCampFilter === camp || (allowedCamps.length === 1 && selectedCampFilter === "all" && campList[0] === camp)) ? "#DC2626" : "#64748b"} />
+                  <Building2 size={16} color={(selectedCampFilter === item.key || selectedCampFilter === item.label) ? "#DC2626" : "#64748b"} />
                   <Text
                     style={[
                       styles.dropdownItemText,
-                      (selectedCampFilter === camp || (allowedCamps.length === 1 && selectedCampFilter === "all" && campList[0] === camp)) && styles.dropdownItemTextActive,
+                      (selectedCampFilter === item.key || selectedCampFilter === item.label) && styles.dropdownItemTextActive,
                     ]}
                   >
-                    {camp}
+                    {item.label}
                   </Text>
                 </View>
-                {(selectedCampFilter === camp || (allowedCamps.length === 1 && selectedCampFilter === "all" && campList[0] === camp)) && <Check size={16} color="#DC2626" />}
+                {(selectedCampFilter === item.key || selectedCampFilter === item.label) && <Check size={16} color="#DC2626" />}
               </TouchableOpacity>
             ))}
           </View>
