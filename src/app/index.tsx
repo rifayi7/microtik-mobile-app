@@ -187,7 +187,7 @@ export default function GatewayScreen() {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color="#DC2626" />
-        <Text style={styles.loadingText}>Connecting to Dashboard...</Text>
+        <Text style={styles.loadingText}>Connecting...</Text>
       </View>
     );
   }

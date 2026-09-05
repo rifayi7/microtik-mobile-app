@@ -97,23 +97,30 @@ export default function HistoryScreen() {
 
   // Extract distinct camp options mapped from registered routers (by id & name) and transaction logs
   const campList = useMemo(() => {
-    const routerItems = routers.map((r) => ({
-      id: r.id,
-      name: r.sessionName || r.camp || "Camp",
-    }));
-
     const distinct = new Map<string, string>();
     distinct.set("all", "All Camps");
 
-    for (const r of routerItems) {
-      distinct.set(r.id, r.name);
+    const seenLabels = new Set<string>();
+
+    for (const r of routers) {
+      const label = (r.sessionName || r.camp || "Camp").trim();
+      const labelLower = label.toLowerCase();
+      if (!seenLabels.has(labelLower)) {
+        seenLabels.add(labelLower);
+        distinct.set(r.id, label);
+      }
     }
 
     for (const l of logs) {
-      if (l.routerId && !distinct.has(l.routerId)) {
-        distinct.set(l.routerId, l.campName || "Camp");
-      } else if (l.campName && !distinct.has(l.campName)) {
-        distinct.set(l.campName, l.campName);
+      const label = (l.campName || "Camp").trim();
+      const labelLower = label.toLowerCase();
+      if (!seenLabels.has(labelLower)) {
+        seenLabels.add(labelLower);
+        if (l.routerId) {
+          distinct.set(l.routerId, label);
+        } else {
+          distinct.set(label, label);
+        }
       }
     }
 
