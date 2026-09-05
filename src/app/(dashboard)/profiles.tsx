@@ -63,15 +63,42 @@ export default function MoreScreen() {
           }
           const dName = await AsyncStorage.getItem("salesperson_display_name");
           const comp = await AsyncStorage.getItem("salesperson_company");
+          const storedUserId = await AsyncStorage.getItem("salesperson_id");
           setSalesperson(name);
           if (dName) setDisplayName(dName);
           if (comp) setCompany(comp);
+
+          // Fetch latest live profile details (resolves latest company name via company_id)
+          try {
+            const query = storedUserId ? `?userId=${encodeURIComponent(storedUserId)}` : `?username=${encodeURIComponent(name)}`;
+            const res = await fetchFromGateway<{ success: boolean; user?: any }>(
+              gatewayUrl,
+              `/api/mikrotik/auth/profile${query}`,
+              null,
+              { method: "GET" }
+            );
+            if (res.success && res.user) {
+              if (res.user.displayName) {
+                setDisplayName(res.user.displayName);
+                await AsyncStorage.setItem("salesperson_display_name", res.user.displayName);
+              }
+              if (res.user.companyName) {
+                setCompany(res.user.companyName);
+                await AsyncStorage.setItem("salesperson_company", res.user.companyName);
+              }
+              if (res.user.companyId) {
+                await AsyncStorage.setItem("salesperson_company_id", String(res.user.companyId));
+              }
+            }
+          } catch (fetchErr) {
+            // Silently fall back to cached AsyncStorage values
+          }
         } catch (e) {
           router.replace("/");
         }
       }
       void loadUser();
-    }, [router])
+    }, [router, gatewayUrl])
   );
 
   const handleOpenResetModal = () => {

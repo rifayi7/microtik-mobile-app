@@ -136,6 +136,11 @@ export default function GatewayScreen() {
         }
         await AsyncStorage.setItem("salesperson_name", result.user.username);
         await AsyncStorage.setItem("salesperson_display_name", dName);
+        if (result.user.companyId) {
+          await AsyncStorage.setItem("salesperson_company_id", String(result.user.companyId));
+        } else {
+          await AsyncStorage.removeItem("salesperson_company_id");
+        }
         if (result.user.companyName) {
           await AsyncStorage.setItem("salesperson_company", result.user.companyName);
         } else {
