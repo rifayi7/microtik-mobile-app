@@ -50,6 +50,7 @@ export default function RechargeScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [salesperson, setSalesperson] = useState("Unknown");
+  const [displayName, setDisplayName] = useState("Salesperson");
 
   // Form states
   const [mobileNumber, setMobileNumber] = useState("");
@@ -92,7 +93,9 @@ export default function RechargeScreen() {
           router.replace("/");
           return;
         }
+        const dName = await AsyncStorage.getItem("salesperson_display_name");
         setSalesperson(user);
+        setDisplayName(dName || user || "Salesperson");
         const allowedStr = await AsyncStorage.getItem("salesperson_allowed_camps");
         if (allowedStr) {
           try {
@@ -310,7 +313,7 @@ export default function RechargeScreen() {
       {/* Header (Top Profile Bar) */}
       <View style={styles.topProfileBar}>
         <View style={styles.welcomeInfo}>
-          <Text style={styles.welcomeHello}>Hello {salesperson}</Text>
+          <Text style={styles.welcomeHello}>Hello {displayName}</Text>
           <Text style={styles.welcomeSubtitle}>Welcome</Text>
         </View>
         <View style={styles.headerRightControls}>
@@ -322,11 +325,11 @@ export default function RechargeScreen() {
           </TouchableOpacity>
           <View style={styles.profileBadge}>
             <View style={styles.profileBadgeTextContainer}>
-              <Text style={styles.profileBadgeName}>{salesperson.substring(0, 10)}</Text>
+              <Text style={styles.profileBadgeName}>{displayName.substring(0, 10)}</Text>
               <Text style={styles.profileBadgeRole}>STAFF</Text>
             </View>
             <View style={styles.profileAvatar}>
-              <Text style={styles.profileAvatarText}>{salesperson.charAt(0).toUpperCase()}</Text>
+              <Text style={styles.profileAvatarText}>{displayName.charAt(0).toUpperCase()}</Text>
             </View>
           </View>
         </View>
