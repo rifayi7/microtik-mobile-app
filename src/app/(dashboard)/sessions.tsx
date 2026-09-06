@@ -158,11 +158,12 @@ export default function HistoryScreen() {
 
       // Compute Dubai Local Date (UTC+4)
       const getDubaiDateStr = (dateObj: Date) => {
-        // Dubai is UTC+4
-        const utc = dateObj.getTime() + dateObj.getTimezoneOffset() * 60000;
-        const dubaiTime = new Date(utc + 3600000 * 4);
-        const pad = (n: number) => n.toString().padStart(2, "0");
-        return `${dubaiTime.getFullYear()}-${pad(dubaiTime.getMonth() + 1)}-${pad(dubaiTime.getDate())}`;
+        return new Intl.DateTimeFormat("en-CA", {
+          timeZone: "Asia/Dubai",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        }).format(dateObj);
       };
 
       const todayStr = getDubaiDateStr(new Date());
@@ -327,31 +328,51 @@ export default function HistoryScreen() {
     });
   }, [logs, selectedCampFilter]);
 
-  // Helper to format ISO or SQL date string into clean Dubai time (hh:mm AM/PM)
+  // Helper to format UTC timestamp string into clean Dubai time (hh:mm AM/PM)
   const formatDubaiTime = (timestampStr?: string) => {
     if (!timestampStr || timestampStr.trim() === "" || timestampStr === "null") return "—";
     try {
-      // If it's already "YYYY-MM-DD HH:MM:SS"
-      const parts = timestampStr.split(" ");
-      const timePart = parts.length > 1 ? parts[1] : parts[0];
-      const timeComponents = timePart.split(":");
-      if (timeComponents.length >= 2) {
-        let hour = parseInt(timeComponents[0], 10);
-        const minute = timeComponents[1];
-        const ampm = hour >= 12 ? "PM" : "AM";
-        hour = hour % 12 || 12;
-        return `${hour}:${minute} ${ampm}`;
-      }
-      return timePart;
+      const isoStr = timestampStr.includes("T")
+        ? timestampStr
+        : timestampStr.replace(" ", "T") + "Z";
+      const date = new Date(isoStr);
+      if (isNaN(date.getTime())) return timestampStr;
+
+      return new Intl.DateTimeFormat("en-US", {
+        timeZone: "Asia/Dubai",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      }).format(date);
     } catch {
       return timestampStr;
+    }
+  };
+
+  const formatDubaiDate = (timestampStr?: string) => {
+    if (!timestampStr || timestampStr.trim() === "" || timestampStr === "null") return "";
+    try {
+      const isoStr = timestampStr.includes("T")
+        ? timestampStr
+        : timestampStr.replace(" ", "T") + "Z";
+      const date = new Date(isoStr);
+      if (isNaN(date.getTime())) return timestampStr.split(" ")[0];
+
+      return new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Dubai",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(date);
+    } catch {
+      return timestampStr.split(" ")[0];
     }
   };
 
   // Compact Single Card Design showing Camp Name instead of Salesperson
   const renderItem = ({ item }: { item: SalesLog }) => {
     const formattedTime = formatDubaiTime(item.timestamp);
-    const formattedDate = item.timestamp ? item.timestamp.split(" ")[0] : "";
+    const formattedDate = formatDubaiDate(item.timestamp);
 
     return (
       <View style={styles.compactCard}>
