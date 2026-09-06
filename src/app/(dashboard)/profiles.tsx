@@ -86,6 +86,9 @@ export default function MoreScreen() {
                 setCompany(res.user.companyName);
                 await AsyncStorage.setItem("salesperson_company", res.user.companyName);
               }
+              if (res.user.companyTimezone) {
+                await AsyncStorage.setItem("salesperson_company_timezone", res.user.companyTimezone);
+              }
               if (res.user.companyId) {
                 await AsyncStorage.setItem("salesperson_company_id", String(res.user.companyId));
               }

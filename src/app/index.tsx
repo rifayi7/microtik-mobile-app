@@ -146,6 +146,9 @@ export default function GatewayScreen() {
         } else {
           await AsyncStorage.removeItem("salesperson_company");
         }
+        if ((result.user as any).companyTimezone) {
+          await AsyncStorage.setItem("salesperson_company_timezone", (result.user as any).companyTimezone);
+        }
         if (result.user.allowedCamps) {
           await AsyncStorage.setItem("salesperson_allowed_camps", JSON.stringify(result.user.allowedCamps));
         } else {

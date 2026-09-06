@@ -51,6 +51,7 @@ export default function HistoryScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [salesperson, setSalesperson] = useState("Unknown");
+  const [companyTimezone, setCompanyTimezone] = useState("Asia/Dubai");
 
   // Filters State
   const [search, setSearch] = useState("");
@@ -80,6 +81,9 @@ export default function HistoryScreen() {
             return;
           }
           setSalesperson(user);
+          const tz = await AsyncStorage.getItem("salesperson_company_timezone");
+          if (tz) setCompanyTimezone(tz);
+
           const allowedStr = await AsyncStorage.getItem("salesperson_allowed_camps");
           if (allowedStr) {
             const parsed = JSON.parse(allowedStr);
@@ -149,6 +153,9 @@ export default function HistoryScreen() {
         } catch {}
       }
 
+      const tz = (await AsyncStorage.getItem("salesperson_company_timezone")) || companyTimezone;
+      if (tz) setCompanyTimezone(tz);
+
       if (activeUser && activeUser !== "Unknown") {
         setSalesperson(activeUser);
       }
@@ -156,24 +163,24 @@ export default function HistoryScreen() {
       let startDate: string | undefined = undefined;
       let endDate: string | undefined = undefined;
 
-      // Compute Dubai Local Date (UTC+4)
-      const getDubaiDateStr = (dateObj: Date) => {
+      // Compute Tenant Local Date using configured company timezone
+      const getLocalDateStr = (dateObj: Date) => {
         return new Intl.DateTimeFormat("en-CA", {
-          timeZone: "Asia/Dubai",
+          timeZone: tz || "Asia/Dubai",
           year: "numeric",
           month: "2-digit",
           day: "2-digit",
         }).format(dateObj);
       };
 
-      const todayStr = getDubaiDateStr(new Date());
+      const todayStr = getLocalDateStr(new Date());
 
       if (selectedFilter === "today") {
         startDate = todayStr;
         endDate = todayStr;
       } else if (selectedFilter === "yesterday") {
         const yest = new Date(Date.now() - 86400000);
-        const yestStr = getDubaiDateStr(yest);
+        const yestStr = getLocalDateStr(yest);
         startDate = yestStr;
         endDate = yestStr;
       } else if (selectedFilter === "custom") {
@@ -328,8 +335,8 @@ export default function HistoryScreen() {
     });
   }, [logs, selectedCampFilter]);
 
-  // Helper to format UTC timestamp string into clean Dubai time (hh:mm AM/PM)
-  const formatDubaiTime = (timestampStr?: string) => {
+  // Helper to format UTC timestamp string into clean tenant local time (hh:mm AM/PM)
+  const formatLocalTime = (timestampStr?: string) => {
     if (!timestampStr || timestampStr.trim() === "" || timestampStr === "null") return "—";
     try {
       const isoStr = timestampStr.includes("T")
@@ -339,7 +346,7 @@ export default function HistoryScreen() {
       if (isNaN(date.getTime())) return timestampStr;
 
       return new Intl.DateTimeFormat("en-US", {
-        timeZone: "Asia/Dubai",
+        timeZone: companyTimezone || "Asia/Dubai",
         hour: "numeric",
         minute: "2-digit",
         hour12: true,
@@ -349,7 +356,7 @@ export default function HistoryScreen() {
     }
   };
 
-  const formatDubaiDate = (timestampStr?: string) => {
+  const formatLocalDate = (timestampStr?: string) => {
     if (!timestampStr || timestampStr.trim() === "" || timestampStr === "null") return "";
     try {
       const isoStr = timestampStr.includes("T")
@@ -359,7 +366,7 @@ export default function HistoryScreen() {
       if (isNaN(date.getTime())) return timestampStr.split(" ")[0];
 
       return new Intl.DateTimeFormat("en-CA", {
-        timeZone: "Asia/Dubai",
+        timeZone: companyTimezone || "Asia/Dubai",
         year: "numeric",
         month: "2-digit",
         day: "2-digit",
@@ -371,8 +378,8 @@ export default function HistoryScreen() {
 
   // Compact Single Card Design showing Camp Name instead of Salesperson
   const renderItem = ({ item }: { item: SalesLog }) => {
-    const formattedTime = formatDubaiTime(item.timestamp);
-    const formattedDate = formatDubaiDate(item.timestamp);
+    const formattedTime = formatLocalTime(item.timestamp);
+    const formattedDate = formatLocalDate(item.timestamp);
 
     return (
       <View style={styles.compactCard}>
