@@ -66,6 +66,47 @@ export default function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadNotifsCount, setUnreadNotifsCount] = useState(0);
+
+  const loadNotifications = useCallback(async (currentSalesperson?: string) => {
+    try {
+      const activeUser = currentSalesperson || salesperson;
+      const storedUserId = await AsyncStorage.getItem("salesperson_id");
+      const storedCompanyId = await AsyncStorage.getItem("salesperson_company");
+      
+      const params = new URLSearchParams();
+      if (storedUserId) params.set("salesPersonId", storedUserId);
+      if (activeUser && activeUser !== "Unknown") params.set("salesperson", activeUser);
+      if (storedCompanyId) params.set("companyId", storedCompanyId);
+
+      const query = `/api/mikrotik/notifications?${params.toString()}`;
+      const payload = await fetchFromGateway<{
+        success: boolean;
+        unreadCount: number;
+        notifications: Array<{
+          id: number;
+          title: string;
+          message: string;
+          createdAt: string;
+          [key: string]: any;
+        }>;
+      }>(gatewayUrl, query, null, { method: "GET" });
+
+      if (payload && payload.notifications) {
+        const formatted = payload.notifications.map((n) => ({
+          id: String(n.id),
+          title: n.title,
+          message: n.message,
+          date: n.createdAt ? new Date(n.createdAt).toLocaleDateString() : "",
+        }));
+        setNotifications(formatted);
+        setUnreadNotifsCount(payload.unreadCount || 0);
+      }
+    } catch {
+      // Non-critical, fail silently for notifications
+    }
+  }, [gatewayUrl, salesperson]);
 
   const loadSummaryData = useCallback(async (currentSalesperson?: string, isRefresh = false) => {
     if (!isRefresh) setLoading(true);
@@ -94,13 +135,16 @@ export default function DashboardScreen() {
       if (payload.userStats) setUserStats(payload.userStats);
       if (payload.overallStats) setOverallStats(payload.overallStats);
       if (payload.lastCollections) setLastCollections(payload.lastCollections);
+      
+      // Also fetch notifications
+      void loadNotifications(activeUser);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load sales summary");
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [gatewayUrl, salesperson]);
+  }, [gatewayUrl, salesperson, loadNotifications]);
 
   useFocusEffect(
     useCallback(() => {
@@ -155,12 +199,14 @@ export default function DashboardScreen() {
           activeOpacity={0.7}
         >
           <Bell size={22} color="#0f172a" />
+          {unreadNotifsCount > 0 && <View style={styles.bellBadge} />}
         </TouchableOpacity>
       </View>
 
       <NotificationModal
         visible={showNotifications}
         onClose={() => setShowNotifications(false)}
+        notifications={notifications}
       />
 
       <ScrollView
