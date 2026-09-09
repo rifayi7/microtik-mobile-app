@@ -256,6 +256,12 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
       await AsyncStorage.multiRemove([
         STORAGE_ACTIVE_ROUTER_ID,
         STORAGE_ROUTERS,
+        "salesperson_name",
+        "salesperson_display_name",
+        "salesperson_id",
+        "salesperson_company",
+        "salesperson_allowed_camps",
+        "auth_token",
       ]);
     } catch {}
   };

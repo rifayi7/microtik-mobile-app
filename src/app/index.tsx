@@ -56,10 +56,51 @@ export default function GatewayScreen() {
       async function checkLogin() {
         try {
           const storedUser = await AsyncStorage.getItem("salesperson_name");
+          const storedUserId = await AsyncStorage.getItem("salesperson_id");
+          const token = await AsyncStorage.getItem("auth_token");
+          const activeGateway = (await AsyncStorage.getItem("mikrotik_gateway_url")) || gatewayUrl || DEFAULT_GATEWAY_URL;
+
           if (!isMounted) return;
 
           if (storedUser && storedUser !== "Unknown") {
-            const token = await AsyncStorage.getItem("auth_token");
+            // Verify session validity against server before navigating
+            try {
+              const cleanBase = activeGateway.trim().replace(/\/+$/, "");
+              let checkUrl = `${cleanBase}/api/mikrotik/auth/profile?`;
+              if (storedUserId) checkUrl += `userId=${encodeURIComponent(storedUserId)}`;
+              else checkUrl += `username=${encodeURIComponent(storedUser)}`;
+
+              const res = await fetch(checkUrl, {
+                headers: {
+                  "Content-Type": "application/json",
+                  ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
+              });
+
+              if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                const errMsg = data.error || "Your account has been suspended or deleted by administrator.";
+                await AsyncStorage.multiRemove([
+                  "salesperson_name",
+                  "salesperson_display_name",
+                  "salesperson_id",
+                  "salesperson_company",
+                  "salesperson_allowed_camps",
+                  "auth_token",
+                  "mikrotik_routers_list",
+                  "mikrotik_active_router_id",
+                ]);
+                if (isMounted) {
+                  setCurrentUser(null);
+                  setLoginPassword("");
+                  setLoginError(errMsg);
+                }
+                return;
+              }
+            } catch {
+              // Network fallback
+            }
+
             const allowedStr = await AsyncStorage.getItem("salesperson_allowed_camps");
             let allowedCamps: string[] = [];
             if (allowedStr) {
@@ -68,9 +109,11 @@ export default function GatewayScreen() {
                 if (Array.isArray(parsed)) allowedCamps = parsed;
               } catch {}
             }
-            setCurrentUser(storedUser);
-            void connectToGateway(gatewayUrl || DEFAULT_GATEWAY_URL, token || undefined, allowedCamps);
-            router.replace("/(dashboard)/dashboard-main");
+            if (isMounted) {
+              setCurrentUser(storedUser);
+              void connectToGateway(activeGateway, token || undefined, allowedCamps);
+              router.replace("/(dashboard)/dashboard-main");
+            }
           } else {
             setCurrentUser(null);
             setLoginPassword("");
@@ -112,6 +155,7 @@ export default function GatewayScreen() {
           id?: number;
           username: string;
           displayName?: string;
+          companyId?: number;
           companyName?: string;
           allowedCamps?: string[];
         };

@@ -8,7 +8,7 @@ import {
   Ticket,
   MoreHorizontal,
 } from "lucide-react-native";
-import { Platform, StyleSheet, Text, Pressable } from "react-native";
+import { Platform, StyleSheet, Text, Pressable, Alert } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useGateway } from "../../contexts/gateway-context";
 import { ConfirmModal } from "../../components/confirm-modal";
@@ -16,28 +16,82 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function DashboardLayout() {
   const router = useRouter();
-  const { activeRouter, isConnected, disconnectRouter } = useGateway();
+  const { activeRouter, isConnected, disconnectRouter, gatewayUrl } = useGateway();
   const [showDisconnectModal, setShowDisconnectModal] = useState(false);
   const insets = useSafeAreaInsets();
 
-  // Auth guard: Ensure operator is logged in before rendering dashboard
+  // Auth guard: Ensure operator is logged in and valid in database
   useEffect(() => {
-    async function verifyAuth() {
+    let isMounted = true;
+
+    async function verifyAuthAndSession() {
       try {
         const storedUser = await AsyncStorage.getItem("salesperson_name");
+        const storedUserId = await AsyncStorage.getItem("salesperson_id");
+        const token = await AsyncStorage.getItem("auth_token");
+        const storedGateway = await AsyncStorage.getItem("mikrotik_gateway_url") || gatewayUrl;
+
         if (!storedUser || storedUser === "Unknown") {
           if (Platform.OS === "web") {
             window.location.href = "/";
           } else {
             router.replace("/");
           }
+          return;
+        }
+
+        // Live check against /api/mikrotik/auth/profile
+        if (storedGateway) {
+          const cleanBase = storedGateway.trim().replace(/\/+$/, "");
+          let checkUrl = `${cleanBase}/api/mikrotik/auth/profile?`;
+          if (storedUserId) checkUrl += `userId=${encodeURIComponent(storedUserId)}`;
+          else checkUrl += `username=${encodeURIComponent(storedUser)}`;
+
+          const res = await fetch(checkUrl, {
+            headers: {
+              "Content-Type": "application/json",
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+          });
+
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            const errMsg = data.error || "Your account has been suspended or deleted by administrator.";
+            if (isMounted) {
+              await disconnectRouter();
+              if (Platform.OS === "web") {
+                alert(errMsg);
+                window.location.href = "/";
+              } else {
+                Alert.alert("Account Suspended", errMsg, [
+                  {
+                    text: "OK",
+                    onPress: () => {
+                      router.replace("/");
+                    },
+                  },
+                ]);
+              }
+            }
+          }
         }
       } catch {
-        router.replace("/");
+        // Fallback network error
       }
     }
-    void verifyAuth();
-  }, []);
+
+    void verifyAuthAndSession();
+
+    // Periodic live session polling every 10 seconds
+    const interval = setInterval(() => {
+      void verifyAuthAndSession();
+    }, 10000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [gatewayUrl]);
 
   // Reactively navigate back to login when disconnected.
   useEffect(() => {
