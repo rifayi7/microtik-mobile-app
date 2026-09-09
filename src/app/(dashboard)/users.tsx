@@ -65,15 +65,8 @@ export default function CouponScreen() {
   );
 
   const visibleRouters = useMemo(() => {
-    if (allowedCamps.length === 0) return routers;
-    const allowedLower = allowedCamps.map((c) => c.toLowerCase());
-    return routers.filter((r) => {
-      const matchId = r.id && allowedLower.includes(r.id.toLowerCase());
-      const matchSession = r.sessionName && allowedLower.includes(r.sessionName.toLowerCase());
-      const matchCamp = r.camp && allowedLower.includes(r.camp.toLowerCase());
-      return matchId || matchSession || matchCamp;
-    });
-  }, [routers, allowedCamps]);
+    return routers;
+  }, [routers]);
 
   const loadPlansForRouter = async (routerId: string, isRefresh = false) => {
     const targetRouter = routers.find((r) => r.id === routerId);

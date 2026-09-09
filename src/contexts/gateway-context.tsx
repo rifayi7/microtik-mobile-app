@@ -142,25 +142,14 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
         }
 
         const savedRouters = await AsyncStorage.getItem(STORAGE_ROUTERS);
-        const allowedStr = await AsyncStorage.getItem("salesperson_allowed_camps");
-        let allowedCamps: string[] = [];
-        if (allowedStr) {
-          try {
-            const parsed = JSON.parse(allowedStr);
-            if (Array.isArray(parsed)) allowedCamps = parsed.map((c) => String(c).toLowerCase());
-          } catch {}
-        }
-
         let parsedRouters: MikrotikRouterConfig[] = [];
         if (savedRouters) {
-          parsedRouters = JSON.parse(savedRouters);
-          if (allowedCamps.length > 0) {
-            parsedRouters = parsedRouters.filter((r) => {
-              const campName = (r.camp || r.sessionName || "").toLowerCase();
-              return allowedCamps.includes(campName);
-            });
-          }
-          setRoutersState(parsedRouters);
+          try {
+            parsedRouters = JSON.parse(savedRouters);
+            if (Array.isArray(parsedRouters)) {
+              setRoutersState(parsedRouters);
+            }
+          } catch {}
         }
 
         const savedActiveId = await AsyncStorage.getItem(STORAGE_ACTIVE_ROUTER_ID);
@@ -324,13 +313,6 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
       
       const payload = await response.json();
       let routersList: MikrotikRouterConfig[] = payload.routers || [];
-
-      if (allowedCamps.length > 0) {
-        routersList = routersList.filter((r) => {
-          const campName = (r.camp || r.sessionName || "").toLowerCase();
-          return allowedCamps.includes(campName);
-        });
-      }
 
       // Save gateway URL
       setGatewayState(cleanUrl);
