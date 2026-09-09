@@ -45,7 +45,7 @@ interface RechargeData {
 
 export default function RechargeScreen() {
   const router = useRouter();
-  const { gatewayUrl, activeRouter, routers, connectRouter } = useGateway();
+  const { gatewayUrl, activeRouter, routers, connectRouter, syncRouters } = useGateway();
   const [data, setData] = useState<RechargeData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -105,9 +105,10 @@ export default function RechargeScreen() {
             }
           } catch {}
         }
+        void syncRouters();
       }
       void refreshSalesperson();
-    }, [router])
+    }, [router, syncRouters])
   );
 
   // Routers list mapped to selectable items using permanent router.id

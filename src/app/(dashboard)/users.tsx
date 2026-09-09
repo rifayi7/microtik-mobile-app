@@ -24,7 +24,7 @@ interface PlanCount {
 
 export default function CouponScreen() {
   const router = useRouter();
-  const { gatewayUrl, routers } = useGateway();
+  const { gatewayUrl, routers, syncRouters } = useGateway();
   const [salesperson, setSalesperson] = useState("Salesperson");
   const [showNotifications, setShowNotifications] = useState(false);
   const [campPlans, setCampPlans] = useState<Record<string, PlanCount[]>>({});
@@ -55,13 +55,14 @@ export default function CouponScreen() {
               }
             } catch {}
           }
+          void syncRouters();
         } catch {}
       }
       void loadUser();
       if (selectedCampId) {
         void loadPlansForRouter(selectedCampId, true);
       }
-    }, [selectedCampId])
+    }, [selectedCampId, syncRouters, router])
   );
 
   const visibleRouters = useMemo(() => {

@@ -37,7 +37,7 @@ import { fetchFromGateway } from "../../lib/api-client";
 
 export default function MoreScreen() {
   const router = useRouter();
-  const { gatewayUrl, activeRouter, routers, disconnectRouter } = useGateway();
+  const { gatewayUrl, activeRouter, routers, disconnectRouter, syncRouters } = useGateway();
   const [salesperson, setSalesperson] = useState("Unknown");
   const [displayName, setDisplayName] = useState("Salesperson");
   const [company, setCompany] = useState<string | null>(null);
@@ -92,6 +92,10 @@ export default function MoreScreen() {
               if (res.user.companyId) {
                 await AsyncStorage.setItem("salesperson_company_id", String(res.user.companyId));
               }
+              if (res.user.allowedCamps) {
+                await AsyncStorage.setItem("salesperson_allowed_camps", JSON.stringify(res.user.allowedCamps));
+              }
+              void syncRouters();
             }
           } catch (fetchErr) {
             // Silently fall back to cached AsyncStorage values
@@ -101,7 +105,7 @@ export default function MoreScreen() {
         }
       }
       void loadUser();
-    }, [router, gatewayUrl])
+    }, [router, gatewayUrl, syncRouters])
   );
 
   const handleOpenResetModal = () => {

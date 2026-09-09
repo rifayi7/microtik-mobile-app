@@ -16,7 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function DashboardLayout() {
   const router = useRouter();
-  const { activeRouter, isConnected, disconnectRouter, gatewayUrl } = useGateway();
+  const { activeRouter, isConnected, disconnectRouter, gatewayUrl, syncRouters } = useGateway();
   const [showDisconnectModal, setShowDisconnectModal] = useState(false);
   const insets = useSafeAreaInsets();
 
@@ -72,6 +72,26 @@ export default function DashboardLayout() {
                   },
                 ]);
               }
+            }
+            return;
+          }
+
+          // Real-time permission sync: update allowed camps, company name, display name, and refresh routers
+          const profileData = await res.json().catch(() => ({}));
+          if (profileData && profileData.success && profileData.user) {
+            const u = profileData.user;
+            if (u.displayName) {
+              await AsyncStorage.setItem("salesperson_display_name", u.displayName);
+            }
+            if (u.companyName) {
+              await AsyncStorage.setItem("salesperson_company", u.companyName);
+            }
+            if (u.allowedCamps) {
+              await AsyncStorage.setItem("salesperson_allowed_camps", JSON.stringify(u.allowedCamps));
+            }
+            // Trigger dynamic router list re-sync from server
+            if (isMounted) {
+              void syncRouters();
             }
           }
         }

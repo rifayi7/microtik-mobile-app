@@ -43,7 +43,7 @@ interface CollectionItem {
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const { gatewayUrl } = useGateway();
+  const { gatewayUrl, syncRouters } = useGateway();
   const [salesperson, setSalesperson] = useState("Unknown");
   const [displayName, setDisplayName] = useState("Salesperson");
   const [summaryList, setSummaryList] = useState<any[]>([]);
@@ -159,12 +159,13 @@ export default function DashboardScreen() {
           setSalesperson(name);
           setDisplayName(dName || name);
           await loadSummaryData(name, true);
+          void syncRouters();
         } catch {
           router.replace("/");
         }
       }
       void refreshOnFocus();
-    }, [loadSummaryData, router])
+    }, [loadSummaryData, router, syncRouters])
   );
 
   const onRefresh = () => {
