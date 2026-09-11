@@ -91,7 +91,7 @@ export default function DashboardLayout() {
             if (u.companyName) {
               await AsyncStorage.setItem("salesperson_company", u.companyName);
             }
-            if (u.allowedCamps) {
+            if (u.allowedCamps !== undefined) {
               await AsyncStorage.setItem("salesperson_allowed_camps", JSON.stringify(u.allowedCamps));
             }
             // Trigger dynamic router list re-sync from server

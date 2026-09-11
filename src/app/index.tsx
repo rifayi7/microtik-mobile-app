@@ -58,9 +58,11 @@ export default function GatewayScreen() {
           const storedUser = await AsyncStorage.getItem("salesperson_name");
           const storedUserId = await AsyncStorage.getItem("salesperson_id");
           const token = await AsyncStorage.getItem("auth_token");
-          const activeGateway = (await AsyncStorage.getItem("mikrotik_gateway_url")) || gatewayUrl || DEFAULT_GATEWAY_URL;
-
-          if (!isMounted) return;
+          let activeGateway = (await AsyncStorage.getItem("mikrotik_gateway_url")) || gatewayUrl || DEFAULT_GATEWAY_URL;
+          if (activeGateway.includes("vercel.app")) {
+            activeGateway = DEFAULT_GATEWAY_URL;
+            await AsyncStorage.setItem("mikrotik_gateway_url", DEFAULT_GATEWAY_URL);
+          }
 
           if (storedUser && storedUser !== "Unknown") {
             // Verify session validity against server before navigating

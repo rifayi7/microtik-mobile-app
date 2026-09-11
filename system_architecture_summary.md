@@ -1,66 +1,168 @@
-# MikroTik Hotspot Voucher Management System
-## System Architecture & Integration Summary
+# LinkFi - Multi-Platform MikroTik Voucher & Sales Ecosystem
+## Comprehensive System Architecture & Developer Guide
 
-The ecosystem consists of three main components working together to handle voucher generation, mobile-based redemption by agents, and sales/revenue reporting.
+The **LinkFi** ecosystem is an end-to-end, multi-platform solution for managing MikroTik Hotspot networks, generating and printing vouchers, selling/recharging vouchers via a field mobile app, and generating sales/collection analytics.
 
 ---
 
 ```mermaid
 graph TD
-    subgraph Mobile App (Expo / React Native)
-        MA[Operator Interface]
+    subgraph 📱 Mobile App (Expo / React Native)
+        MA[Field Operator App / POS]
     end
 
-    subgraph Core Backend (Next.js)
-        CB[API Gateway / Router Handler]
-        DB[(SQLite: vouchers.db)]
+    subgraph 🗄️ Shared Central Database (Turso Cloud / LibSQL)
+        TDB[(Turso Cloud Database: vouchers, routers, camps, payments, expenses, report_users)]
     end
 
-    subgraph Sales Report Dashboard (Next.js)
-        SR[Admin Dashboard & Analytics]
+    subgraph 🌐 Core Web & API Gateway (Next.js @ Vercel)
+        CW[Web Admin Portal & Central API Gateway]
+        CW_URL["https://microtik-nine.vercel.app"]
     end
 
-    subgraph Infrastructure
-        MT[MikroTik RouterOS API]
+    subgraph 📊 Sales & Accounting Portal (Next.js)
+        SR[Admin Sales, Pricing & Expense Dashboard]
     end
 
-    %% Mobile App Connections
-    MA -- "1. GET /api/mikrotik/users" --> CB
-    MA -- "2. POST /api/mikrotik/vouchers/redeem" --> CB
+    subgraph 🛰️ Physical Networks (Hotspot Infrastructure)
+        MT1[MikroTik RouterOS - Camp 1]
+        MT2[MikroTik RouterOS - Camp 2]
+    end
 
-    %% Core Backend Connections
-    CB -- "3. Read/Write Vouchers" --> DB
-    CB -- "4. Create/Update Hotspot Users" --> MT
+    %% Mobile Connections
+    MA -- "1. Operator Auth & Recharge (/api/mikrotik/*)" --> CW_URL
+    CW -- "2. Direct Sync" --> TDB
+
+    %% Router Connections
+    CW -- "3. RouterOS API (Port 8728/21985)" --> MT1
+    CW -- "3. RouterOS API (Port 8728/21985)" --> MT2
 
     %% Sales Report Connections
-    SR -- "5. Direct Read/Write (sales_pricing)" --> DB
+    SR -- "4. SQL Queries & Management (ID-Based Multi-Tenancy)" --> TDB
 ```
 
 ---
 
-### 1. ⚙️ Core Backend (`microtik`)
-*   **Path:** `C:\Users\User\Documents\microtik`
-*   **Role:** Acts as the primary backend controller and database owner.
-*   **Key Responsibilities:**
-    *   Maintains the main SQLite database: [vouchers.db](file:///C:/Users/User/Documents/microtik/vouchers.db).
-    *   Integrates with **MikroTik RouterOS** via the Node API protocol.
-    *   Exposes endpoints used by the Mobile App:
-        *   `POST /api/mikrotik/users`: Fetches list of current hotspot users on the router.
-        *   `POST /api/mikrotik/vouchers/redeem`: Receives redemption requests from the mobile app. Updates the SQLite database (`is_used = 1`, logs phone number to `used_by`, logs agent name to `sold_by`), and creates/updates the matching hotspot user with comments on the MikroTik router.
+## 🏢 ID-Based Multi-Tenancy & Report Users Architecture
 
-### 2. 📱 Mobile Operator App (`microtik-mobileapp`)
-*   **Path:** `C:\Users\User\Downloads\microtik-mobileapp\microtik-mobileapp`
-*   **Role:** Used by operators/agents in the field to recharge client accounts.
-*   **Key Responsibilities:**
-    *   Fetches the list of active router users from the backend, parsing and matching them into available/used packages dynamically.
-    *   Provides a clean dashboard for selecting plans (7, 15, 30 days) and entering the customer's mobile number.
-    *   Executes recharges by sending the `salesperson`'s identity and customer details to `/api/mikrotik/vouchers/redeem`.
-    *   Displays successful recharge receipts to operators.
+All tenant entities in the LinkFi ecosystem are bound together strictly using **Numerical Integer IDs** to prevent conflicts or broken associations:
+1. **`companies`**: `id` (INTEGER PK), `name` (TEXT), `timezone` (e.g. `Asia/Dubai`, `Asia/Riyadh`).
+2. **`report_users`**:
+   - Stores login access for managers, auditors, and company accountants to view the **Sales Report Portal**.
+   - Accessible and configurable **strictly by Super Administrators** via the Web Admin Portal (`/admin` -> `Report Viewers`).
+   - Fields: `id`, `username`, `password`, `display_name`, `company_id` (FK to `companies.id`), `company_name`, `allowed_camp_ids` (JSON), `status` (1 = active, 0 = disabled).
+3. **`sales_persons` (Salespeople & Mobile POS Operators)**:
+   - Identifies POS salespeople bound to specific companies and authorized camps/routers.
+   - Fields: `id`, `username`, `display_name`, `password`, `company_id` (FK to `companies.id`), `company_name`, `allowed_camps` (JSON Array), `allowed_router_ids` (JSON Array of router IDs).
+   - Deprecated static `camp_name` field in favor of dynamic multi-camp permissions via `allowed_camps` and `allowed_router_ids`.
+4. **Role & Branding Indicators**:
+   - Web Admin Portal header & sidebar dynamically display account level:
+     - `🛡️ Super Administrator`
+     - `🏢 Company Admin: {CompanyName}`
+   - Official branding updated across web surfaces to **LinkFi** featuring the official logo.
 
-### 3. 📊 Sales Reporting Dashboard (`microtik-sales-report`)
-*   **Path:** `C:\Users\User\Documents\microtik-sales-report`
-*   **Role:** Analytics portal for administrators to track performance.
-*   **Key Responsibilities:**
-    *   Connects directly to the shared [vouchers.db](file:///C:/Users/User/Documents/microtik/vouchers.db) database via environment variable settings in [.env.local](file:///C:/Users/User/Documents/microtik-sales-report/.env.local).
-    *   Maintains a custom `sales_pricing` table to map voucher validity days (e.g. 7, 15, 30 days) to their sale price (in AED/currency).
-    *   Provides dashboards showing total revenue, daily trends, logs, and an **Agent Leaderboard** ranking salespeople by sales count and generated revenue.
+---
+
+## 📡 Router Hardware Discovery, Deduplication & Lifecycle (`rout-plan-2`)
+
+1. **Hardware Discovery via `/api/mikrotik/routers/test`**:
+   - Queries `/system/routerboard`, `/system/resource`, `/system/identity`, and `/ip/cloud`.
+   - Extracts hardware `serial-number`, `board-name`, `version`, and Cloud DNS (`*.sn.mynetname.net`).
+2. **Deterministic Hardware Router IDs**:
+   - `router-[serialNumber]` (e.g. `router-HE4089A12B`) or `router-[cloudPrefix]`.
+   - Uniquely identifies physical hardware and prevents duplicate records under different names.
+3. **Soft-Delete & Automatic Reactivation**:
+   - Deleting a router marks `is_active = 0` and `deleted_at = CURRENT_TIMESTAMP`, keeping historical voucher transactions and sales reports 100% intact.
+   - Re-adding the same physical router automatically reactivates the record (`is_active = 1`) and preserves historical links.
+
+---
+
+## 📢 Broadcast & Operator Notifications System
+
+1. **Super Admin Broadcast Hub (`/admin` -> Notifications)**:
+   - Super Administrators can compose and broadcast real-time operational messages, maintenance alerts, or price updates.
+   - **Targeting Modes**:
+     - `ALL`: Dispatches announcement globally to all operators across all companies.
+     - `COMPANY`: Scopes the notification strictly to field operators under the selected company ID (`company_id`).
+   - **Urgency Types**: `info` ℹ️, `warning` ⚠️, `urgent` 🚨, `maintenance` 🔧.
+2. **API Contracts**:
+   - `GET /api/mikrotik/admin/notifications`: Super Admin management and read statistics.
+   - `POST /api/mikrotik/admin/notifications`: Broadcast new message.
+   - `DELETE /api/mikrotik/admin/notifications?id={id}`: Revoke announcement.
+   - `GET /api/mikrotik/notifications`: Mobile operator fetch scoped by `company_id` and `salesPersonId`.
+   - `POST /api/mikrotik/notifications/read`: Mark notification as read per salesperson.
+
+---
+
+## ⏸️ Company Suspension & Dues Enforcement System
+
+1. **Company Status Management (`/admin` -> Company Accounts)**:
+   - Super Administrators can toggle any client company account between **`Active` (1)** and **`Paused (Dues)` (0)**.
+   - Updates `companies.status` and `companies.suspended_reason` without altering or deleting any historical vouchers, routers, or transaction logs.
+2. **Multi-Platform Enforcement**:
+   - **Sales Operator Mobile App**:
+     - `POST /api/mikrotik/auth/login` checks company status upon operator authentication. If paused, access is denied with HTTP 403 (`isSuspended: true`).
+     - `POST /api/mikrotik/vouchers/redeem` checks company status upon voucher sale. If paused, recharges are blocked with HTTP 403 (`isSuspended: true`).
+   - **Company Admin Portal**:
+     - `POST /api/mikrotik/auth/admin-login` blocks company admin dashboard access with suspension notice while paused.
+3. **Instant Reactivation**:
+   - Toggling back to **Activate** restores all company services, sales POS, and admin access instantly in real-time.
+
+
+
+---
+
+## 🛡️ Super Administrator Dynamic Management & Bootstrap Architecture
+
+1. **Dedicated Database Storage**:
+   - Stored dynamically in the `super_admins` table (`id`, `username`, `display_name`, `password`, `created_at`).
+   - Managed strictly via the server-side CLI tool `npm run bootstrap:superadmin` (`scripts/bootstrap-superadmin.mjs`) on Turso Cloud with password confirmation and mandatory inputs.
+2. **Zero Hardcoded Credentials**:
+   - All hardcoded fallback credentials (`admin` / `admin123`) and legacy default seeds have been completely removed.
+   - Authentication is strictly verified against dynamic database records using salted `scrypt` hashing.
+3. **Cross-Table Conflict Prevention**:
+   - Super Admin usernames and Company Admin usernames are cross-checked across both tables with a privacy-preserving neutral error message (`"This username is already taken. Please choose another one."`).
+
+---
+
+## 🔒 End-to-End API Security & Parameter Tamper-Proofing
+
+1. **Strict Server-Side Authorization (`requireAuth` & `buildWhereClauseAsync`)**:
+   - Every protected API route validates JWT bearer tokens, signature integrity, and active tenant status.
+   - For all non-superadmin users (company admins, report viewers, field salespersons), access boundaries (`company_id`, `allowed_camps`, `allowed_router_ids`) are retrieved **authoritatively from Turso DB tables** (`report_users`, `sales_persons`, `company_admins`) on the server.
+2. **Neutralization of Client Parameter Injection**:
+   - Attack vector mitigated: Malicious clients attempting to append or modify query parameters (e.g. `allowedCamps`, `companyId`, `userType`, `routerId`) cannot escalate permissions or view other companies'/camps' sales logs, summaries, or payments.
+   - Any query specifying unauthorized camp or router identifiers is filtered out or rejected with HTTP 403 `Access Denied`.
+3. **Password Security Standard**:
+   - Uses Node.js native `scrypt` hashing with unique per-password cryptographic salts across all ecosystem tables (`super_admins`, `company_admins`, `sales_persons`, `report_users`).
+   - Backward-compatible auto-upgrade smoothly migrates legacy credentials upon successful login (`needsRehash` transparently upgrades DB record to `scrypt`).
+4. **Single Active Device Concurrency Control (Kick Out Previous Device)**:
+   - Enforced on all salesperson logins via a dynamic `active_session_token` recorded in the `sales_persons` table and embedded into the JWT token payload.
+   - When a salesperson logs into a new device (Phone B), a fresh session UUID is generated in the database.
+   - Any ongoing API calls, profile polling, or voucher recharges from the previous device (Phone A) are immediately rejected with HTTP 401 (`errorCode: "SESSION_EXPIRED_OTHER_DEVICE"`), automatically logging out the previous phone and alerting the operator.
+5. **Default-Deny Camp Permissions (0-Access When Empty/Null)**:
+   - For both `sales_persons` and `report_users`, if `allowed_camps` or `allowed_camp_ids` is `null`, empty string `""`, or an empty JSON array `[]`, the system strictly interprets this as **0 Access (NO camps permitted)** — **NEVER** "All Camps".
+   - **Sales Operation POS**:
+     - `GET /api/mikrotik/routers`: Returns `[]` (0 routers available).
+     - `POST /api/mikrotik/vouchers/plans`: Denies access with HTTP 403 (`"Access Denied: No camps assigned to your account"`).
+     - `POST /api/mikrotik/vouchers/redeem`: Blocks sales with HTTP 403 (`"Access Denied: No camps assigned to your account"`).
+     - `POST /api/mikrotik/vouchers/list`: Denies voucher listing with HTTP 403.
+   - **Sales & Accounting Portal**:
+     - Summary metrics, comparison cards, and voucher sales lists evaluate to `1 = 0`, returning `0 sales`, `0 revenue`, and `[]` empty camp lists.
+
+---
+
+## 🏷️ Camp Pricing, Validity Profiles & Dynamic Unit Weighting
+
+1. **Validity Profiles (`validity_profiles`)**:
+   - Master list of voucher validity tiers and their normalized unit weightings for sales metrics (e.g. `30-Days` = 1.0 unit, `15-Days` = 0.5 unit, `7-Days` = 0.25 unit, `10-Days` = 0.33 unit, `1-Day` = 0.033 unit).
+   - Super Administrators can add and customize validity profiles dynamically in the Web Admin & Sales Report masters.
+2. **Camp Validity Pricing (`camp_validity_pricing`)**:
+   - Clean relational schema: `id`, `company_id` (FK to `companies.id`), `router_id` (FK to `routers.id`), `validity` (INTEGER number of days, e.g. `15`, `30`), `price` (REAL AED), `unit` (REAL sales multiplier, e.g. `0.5`, `1.0`), `status` (INTEGER `1` = active).
+   - **Auto-Seeding on Router / Camp Creation**: Whenever a new router or camp is created, two default pricing records are automatically seeded:
+     - `validity: 15` (Default Price: 16 AED, Unit: 0.5)
+     - `validity: 30` (Default Price: 32 AED, Unit: 1.0)
+   - Super Administrators can subsequently modify prices, units, toggle active/inactive status, or add additional validity tiers (e.g. 7 days, 10 days) from the Super Admin Pricing dashboard.
+3. **Dynamic Sales Count Calculation**:
+   - Sales counts across the Mobile POS, Web Dashboard, and Sales Reports are dynamically computed by joining with `camp_validity_pricing.unit` and `validity_profiles.unit_weight` instead of hardcoded numbers, ensuring custom validity plans reflect accurately in metrics.
+

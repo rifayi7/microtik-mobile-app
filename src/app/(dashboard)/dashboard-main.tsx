@@ -131,7 +131,25 @@ export default function DashboardScreen() {
         null,
         { method: "GET" }
       );
-      setSummaryList(payload.data || []);
+      // Double check allowed camps filter client-side
+      const allowedCampsStr = await AsyncStorage.getItem("salesperson_allowed_camps");
+      let allowedCampsList: string[] = [];
+      if (allowedCampsStr) {
+        try {
+          const parsed = JSON.parse(allowedCampsStr);
+          if (Array.isArray(parsed)) allowedCampsList = parsed.map((c) => String(c).toLowerCase());
+        } catch {}
+      }
+
+      let filteredData = payload.data || [];
+      if (allowedCampsStr !== null) {
+        filteredData = filteredData.filter((item) => {
+          const cName = String(item.campName || "").toLowerCase();
+          return allowedCampsList.includes(cName);
+        });
+      }
+
+      setSummaryList(filteredData);
       if (payload.userStats) setUserStats(payload.userStats);
       if (payload.overallStats) setOverallStats(payload.overallStats);
       if (payload.lastCollections) setLastCollections(payload.lastCollections);

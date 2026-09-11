@@ -72,7 +72,7 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
         { method: "GET" }
       );
 
-      if (result && result.routers) {
+      if (result && Array.isArray(result.routers)) {
         const routersList = result.routers;
         const dynamicallyAllowed = routersList.map((r) => r.camp || r.sessionName).filter(Boolean) as string[];
         
@@ -115,8 +115,8 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
         const savedGateway = await AsyncStorage.getItem(STORAGE_GATEWAY_URL);
         let normalizedUrl = DEFAULT_GATEWAY_URL;
         
-        // If storage has old localhost/127.0.0.1 or is empty, automatically overwrite with production Vercel
-        if (!savedGateway || savedGateway.includes("localhost") || savedGateway.includes("127.0.0.1")) {
+        // Always enforce DEFAULT_GATEWAY_URL (localhost:3000) if savedGateway is pointing to production vercel
+        if (!savedGateway || savedGateway.includes("vercel.app")) {
           normalizedUrl = DEFAULT_GATEWAY_URL;
           await AsyncStorage.setItem(STORAGE_GATEWAY_URL, DEFAULT_GATEWAY_URL);
         } else {
