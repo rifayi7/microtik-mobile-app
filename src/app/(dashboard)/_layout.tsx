@@ -56,14 +56,19 @@ export default function DashboardLayout() {
 
           if (!res.ok) {
             const data = await res.json().catch(() => ({}));
-            const errMsg = data.error || "Your account has been suspended or deleted by administrator.";
+            const isSessionReplaced = data.isSessionReplaced || data.errorCode === "SESSION_EXPIRED_OTHER_DEVICE";
+            const alertTitle = isSessionReplaced ? "Logged Out" : "Account Suspended";
+            const errMsg = data.error || (isSessionReplaced 
+              ? "You have been logged out because this account was logged in on another device."
+              : "Your account has been suspended or deleted by administrator.");
+
             if (isMounted) {
               await disconnectRouter();
               if (Platform.OS === "web") {
                 alert(errMsg);
                 window.location.href = "/";
               } else {
-                Alert.alert("Account Suspended", errMsg, [
+                Alert.alert(alertTitle, errMsg, [
                   {
                     text: "OK",
                     onPress: () => {
