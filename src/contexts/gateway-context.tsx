@@ -77,9 +77,7 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
         const dynamicallyAllowed = routersList.map((r) => r.camp || r.sessionName).filter(Boolean) as string[];
         
         // Keep salesperson_allowed_camps updated with fresh server permissions
-        if (dynamicallyAllowed.length > 0) {
-          await AsyncStorage.setItem("salesperson_allowed_camps", JSON.stringify(dynamicallyAllowed));
-        }
+        await AsyncStorage.setItem("salesperson_allowed_camps", JSON.stringify(dynamicallyAllowed));
 
         setRoutersState(routersList);
         await AsyncStorage.setItem(STORAGE_ROUTERS, JSON.stringify(routersList));
