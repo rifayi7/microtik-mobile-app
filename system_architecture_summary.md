@@ -17,7 +17,7 @@ graph TD
 
     subgraph 🌐 Core Web & API Gateway (Next.js @ Vercel)
         CW[Web Admin Portal & Central API Gateway]
-        CW_URL["https://microtik-nine.vercel.app"]
+        CW_URL["https://linkfi-panel.vercel.app"]
     end
 
     subgraph 📊 Sales & Accounting Portal (Next.js)
