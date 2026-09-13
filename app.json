@@ -2,7 +2,7 @@
   "expo": {
     "name": "LinkFi",
     "slug": "microtik-mobileapp",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "microtikmobileapp",
@@ -12,6 +12,7 @@
     },
     "android": {
       "package": "com.rifayi7.microtikmobileapp",
+      "versionCode": 2,
       "adaptiveIcon": {
         "backgroundColor": "#ffffff",
         "foregroundImage": "./assets/images/android-icon-foreground.png"
