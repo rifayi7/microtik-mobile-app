@@ -226,22 +226,10 @@ export default function GatewayScreen() {
     }
   };
 
-  if (checkingLogin || loading) {
+  if (checkingLogin || loading || currentUser) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color="#DC2626" />
-        <Text style={styles.loadingText}>
-          {checkingLogin ? "Checking operator session..." : "Loading configurations..."}
-        </Text>
-      </View>
-    );
-  }
-
-  if (currentUser) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#DC2626" />
-        <Text style={styles.loadingText}>Connecting...</Text>
       </View>
     );
   }
