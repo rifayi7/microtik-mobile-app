@@ -69,44 +69,10 @@ export default function DashboardScreen() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadNotifsCount, setUnreadNotifsCount] = useState(0);
 
-  const loadNotifications = useCallback(async (currentSalesperson?: string) => {
-    try {
-      const activeUser = currentSalesperson || salesperson;
-      const storedUserId = await AsyncStorage.getItem("salesperson_id");
-      const storedCompanyId = await AsyncStorage.getItem("salesperson_company");
-      
-      const params = new URLSearchParams();
-      if (storedUserId) params.set("salesPersonId", storedUserId);
-      if (activeUser && activeUser !== "Unknown") params.set("salesperson", activeUser);
-      if (storedCompanyId) params.set("companyId", storedCompanyId);
-
-      const query = `/api/mikrotik/notifications?${params.toString()}`;
-      const payload = await fetchFromGateway<{
-        success: boolean;
-        unreadCount: number;
-        notifications: Array<{
-          id: number;
-          title: string;
-          message: string;
-          createdAt: string;
-          [key: string]: any;
-        }>;
-      }>(gatewayUrl, query, null, { method: "GET" });
-
-      if (payload && payload.notifications) {
-        const formatted = payload.notifications.map((n) => ({
-          id: String(n.id),
-          title: n.title,
-          message: n.message,
-          date: n.createdAt ? new Date(n.createdAt).toLocaleDateString() : "",
-        }));
-        setNotifications(formatted);
-        setUnreadNotifsCount(payload.unreadCount || 0);
-      }
-    } catch {
-      // Non-critical, fail silently for notifications
-    }
-  }, [gatewayUrl, salesperson]);
+  const loadNotifications = useCallback(async (_currentSalesperson?: string) => {
+    // Notification fetching disabled per configuration
+    return;
+  }, []);
 
   const loadSummaryData = useCallback(async (currentSalesperson?: string, isRefresh = false) => {
     if (!isRefresh) setLoading(true);
