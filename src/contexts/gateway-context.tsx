@@ -147,8 +147,8 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
         const savedGateway = await AsyncStorage.getItem(STORAGE_GATEWAY_URL);
         let normalizedUrl = DEFAULT_GATEWAY_URL;
         
-        // Always enforce DEFAULT_GATEWAY_URL (localhost:3000) if savedGateway is pointing to production vercel
-        if (!savedGateway || savedGateway.includes("vercel.app")) {
+        // If storage has old localhost/127.0.0.1 or is empty, automatically update to DEFAULT_GATEWAY_URL
+        if (!savedGateway || savedGateway.includes("localhost") || savedGateway.includes("127.0.0.1")) {
           normalizedUrl = DEFAULT_GATEWAY_URL;
           await AsyncStorage.setItem(STORAGE_GATEWAY_URL, DEFAULT_GATEWAY_URL);
         } else {

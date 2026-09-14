@@ -59,7 +59,7 @@ export default function GatewayScreen() {
           const storedUserId = await AsyncStorage.getItem("salesperson_id");
           const token = await AsyncStorage.getItem("auth_token");
           let activeGateway = (await AsyncStorage.getItem("mikrotik_gateway_url")) || gatewayUrl || DEFAULT_GATEWAY_URL;
-          if (activeGateway.includes("vercel.app")) {
+          if (!activeGateway || activeGateway.includes("localhost") || activeGateway.includes("127.0.0.1")) {
             activeGateway = DEFAULT_GATEWAY_URL;
             await AsyncStorage.setItem("mikrotik_gateway_url", DEFAULT_GATEWAY_URL);
           }
