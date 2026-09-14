@@ -38,7 +38,7 @@ export async function fetchFromGateway<T>(
     requestBody.routerId = routerConfig.id;
   }
 
-  const timeoutMs = options.timeoutMs ?? 8000;
+  const timeoutMs = options.timeoutMs ?? 30000;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -77,7 +77,7 @@ export async function fetchFromGateway<T>(
   } catch (error: any) {
     clearTimeout(timer);
     if (error?.name === "AbortError" || controller.signal.aborted) {
-      throw new Error("Cannot reach backend server. Connection timed out after 8 seconds.");
+      throw new Error(`Cannot reach backend server. Request timed out after ${Math.round(timeoutMs / 1000)} seconds.`);
     }
     const msg = error instanceof Error ? error.message : String(error);
     if (msg.includes("Network request failed") || msg.includes("Failed to fetch") || msg.includes("ECONNREFUSED")) {
