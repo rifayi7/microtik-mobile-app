@@ -166,3 +166,19 @@ All tenant entities in the LinkFi ecosystem are bound together strictly using **
 3. **Dynamic Sales Count Calculation**:
    - Sales counts across the Mobile POS, Web Dashboard, and Sales Reports are dynamically computed by joining with `camp_validity_pricing.unit` and `validity_profiles.unit_weight` instead of hardcoded numbers, ensuring custom validity plans reflect accurately in metrics.
 
+---
+
+## ⚡ Performance, Mobile Network Resilience & Idempotency Safeguards
+
+1. **Mobile App Request Deduplication & Render Loop Elimination**:
+   - In `gateway-context.tsx`, in-flight requests to `/api/mikrotik/routers` are cached and deduplicated (`inFlightRouterSync`) with a 2.5s debounce throttle.
+   - Deep equality checks on router lists prevent updating state with identical data, eliminating cascading React re-renders across consumers.
+   - Screen focus effects on `recharge.tsx` are consolidated and guarded with `isLoadingPlansRef` and memoized router IDs, eliminating infinite feedback loops (which previously generated up to 11 concurrent requests/sec).
+   - In `_layout.tsx`, 10-second heartbeat polling only re-syncs routers if `allowedCamps` has actually changed on the server.
+2. **Duplicate Recharge Protection (Idempotency Window)**:
+   - In `/api/mikrotik/vouchers/redeem`, a 45-second idempotency check queries recent redemptions matching `used_by = mobileNumber`, `router_id`, and `validity_days`.
+   - If an operator taps "Recharge" again after a temporary client timeout or network glitch while the server was completing the transaction, the API returns the already redeemed voucher with `{ success: true, alreadyCompleted: true }`, completely preventing double-billing or burning duplicate inventory.
+3. **Network Timeouts**:
+   - Mobile app network client timeout is configured to 30,000ms (30s) to accommodate cellular data latencies, MikroTik TCP socket establishment, and serverless cold starts.
+
+

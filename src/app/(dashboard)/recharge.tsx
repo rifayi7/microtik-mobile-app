@@ -9,7 +9,7 @@ import {
   Phone,
   Ticket,
 } from "lucide-react-native";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
 import {
   ActivityIndicator,
@@ -45,7 +45,7 @@ interface RechargeData {
 
 export default function RechargeScreen() {
   const router = useRouter();
-  const { gatewayUrl, activeRouter, routers, connectRouter, syncRouters } = useGateway();
+  const { gatewayUrl, activeRouter, routers, connectRouter } = useGateway();
   const [data, setData] = useState<RechargeData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -84,32 +84,7 @@ export default function RechargeScreen() {
 
   const [allowedCamps, setAllowedCamps] = useState<string[]>([]);
   const [selectedCamp, setSelectedCamp] = useState<string | null>(null);
-
-  useFocusEffect(
-    useCallback(() => {
-      async function refreshSalesperson() {
-        const user = await AsyncStorage.getItem("salesperson_name");
-        if (!user || user === "Unknown") {
-          router.replace("/");
-          return;
-        }
-        const dName = await AsyncStorage.getItem("salesperson_display_name");
-        setSalesperson(user);
-        setDisplayName(dName || user || "Salesperson");
-        const allowedStr = await AsyncStorage.getItem("salesperson_allowed_camps");
-        if (allowedStr) {
-          try {
-            const parsed = JSON.parse(allowedStr);
-            if (Array.isArray(parsed)) {
-              setAllowedCamps(parsed);
-            }
-          } catch {}
-        }
-        void syncRouters();
-      }
-      void refreshSalesperson();
-    }, [router, syncRouters])
-  );
+  const isLoadingPlansRef = useRef(false);
 
   // Routers list mapped to selectable items using permanent router.id
   const selectableRouters = useMemo(() => {
@@ -140,12 +115,16 @@ export default function RechargeScreen() {
     return currentCampRouter.sessionName || currentCampRouter.camp || "Camp";
   }, [currentCampRouter]);
 
+  const currentCampRouterId = currentCampRouter?.id;
+
   const loadData = useCallback(async () => {
     if (!currentCampRouter) {
       setData(null);
       setLoading(false);
       return;
     }
+    if (isLoadingPlansRef.current) return;
+    isLoadingPlansRef.current = true;
     setLoading(true);
     setError(null);
 
@@ -166,19 +145,27 @@ export default function RechargeScreen() {
       setError(err instanceof Error ? err.message : "Failed to load recharge data");
     } finally {
       setLoading(false);
+      isLoadingPlansRef.current = false;
     }
-  }, [gatewayUrl, currentCampRouter]);
+  }, [gatewayUrl, currentCampRouterId]);
 
   useFocusEffect(
     useCallback(() => {
-      async function syncAllowedOnFocus() {
+      let isMounted = true;
+      async function onScreenFocus() {
         try {
           const user = await AsyncStorage.getItem("salesperson_name");
-          if (user) {
+          if (!user || user === "Unknown") {
+            router.replace("/");
+            return;
+          }
+          const dName = await AsyncStorage.getItem("salesperson_display_name");
+          if (isMounted) {
             setSalesperson(user);
+            setDisplayName(dName || user || "Salesperson");
           }
           const allowedStr = await AsyncStorage.getItem("salesperson_allowed_camps");
-          if (allowedStr) {
+          if (allowedStr && isMounted) {
             try {
               const parsed = JSON.parse(allowedStr);
               if (Array.isArray(parsed) && parsed.length > 0) {
@@ -186,13 +173,17 @@ export default function RechargeScreen() {
               }
             } catch {}
           }
+          if (isMounted && currentCampRouterId) {
+            void loadData();
+          }
         } catch {}
       }
-      void syncAllowedOnFocus();
-      if (currentCampRouter) {
-        void loadData();
-      }
-    }, [loadData, currentCampRouter])
+      void onScreenFocus();
+
+      return () => {
+        isMounted = false;
+      };
+    }, [router, loadData, currentCampRouterId])
   );
 
   const planGroups = useMemo(() => {

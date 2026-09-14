@@ -92,11 +92,15 @@ export default function DashboardLayout() {
               await AsyncStorage.setItem("salesperson_company", u.companyName);
             }
             if (u.allowedCamps !== undefined) {
-              await AsyncStorage.setItem("salesperson_allowed_camps", JSON.stringify(u.allowedCamps));
-            }
-            // Trigger dynamic router list re-sync from server
-            if (isMounted) {
-              void syncRouters();
+              const currentAllowed = await AsyncStorage.getItem("salesperson_allowed_camps");
+              const newAllowedStr = JSON.stringify(u.allowedCamps);
+              if (currentAllowed !== newAllowedStr) {
+                await AsyncStorage.setItem("salesperson_allowed_camps", newAllowedStr);
+                // Only trigger dynamic router re-sync if allowed camps actually changed
+                if (isMounted) {
+                  void syncRouters();
+                }
+              }
             }
           }
         }

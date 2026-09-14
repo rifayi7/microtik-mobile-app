@@ -29,6 +29,10 @@ const STORAGE_GATEWAY_URL = "mikrotik_gateway_url";
 const STORAGE_ROUTERS = "mikrotik_routers_list";
 const STORAGE_ACTIVE_ROUTER_ID = "mikrotik_active_router_id";
 
+// In-flight request deduplication and debounce cache
+let inFlightRouterSync: Promise<void> | null = null;
+let lastSyncTimestamp = 0;
+
 export function GatewayProvider({ children }: { children: React.ReactNode }) {
   const [gatewayUrl, setGatewayState] = useState<string>(DEFAULT_GATEWAY_URL);
   const [routers, setRoutersState] = useState<MikrotikRouterConfig[]>([]);
@@ -36,72 +40,100 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState<boolean>(true);
 
   const syncRoutersFromServer = useCallback(async (url: string, activeId: string | null) => {
-    try {
-      const normalizedUrl = url.replace(/\/+$/, "");
-      const token = await AsyncStorage.getItem("auth_token");
-      const storedName = await AsyncStorage.getItem("salesperson_name");
-      const storedUserId = await AsyncStorage.getItem("salesperson_id");
-      const allowedStr = await AsyncStorage.getItem("salesperson_allowed_camps");
-
-      // DO NOT make unauthenticated router fetch on boot if user is not logged in!
-      if (!token && !storedUserId && (!storedName || storedName === "Unknown")) {
-        setRoutersState([]);
-        setActiveRouterState(null);
-        return;
-      }
-
-      let allowedCamps: string[] = [];
-      if (allowedStr) {
-        try {
-          const parsed = JSON.parse(allowedStr);
-          if (Array.isArray(parsed)) allowedCamps = parsed.map((c) => String(c).toLowerCase());
-        } catch {}
-      }
-
-      let routerPath = "/api/mikrotik/routers?verified=true";
-      if (storedUserId) {
-        routerPath += `&salesPersonId=${encodeURIComponent(storedUserId)}`;
-      } else if (storedName && storedName !== "Unknown") {
-        routerPath += `&salesperson=${encodeURIComponent(storedName)}`;
-      }
-
-      const result = await fetchFromGateway<{ routers: MikrotikRouterConfig[] }>(
-        normalizedUrl,
-        routerPath,
-        null,
-        { method: "GET" }
-      );
-
-      if (result && Array.isArray(result.routers)) {
-        const routersList = result.routers;
-        const dynamicallyAllowed = routersList.map((r) => r.camp || r.sessionName).filter(Boolean) as string[];
-        
-        // Keep salesperson_allowed_camps updated with fresh server permissions
-        await AsyncStorage.setItem("salesperson_allowed_camps", JSON.stringify(dynamicallyAllowed));
-
-        setRoutersState(routersList);
-        await AsyncStorage.setItem(STORAGE_ROUTERS, JSON.stringify(routersList));
-
-        // Sync active router details if it changed
-        const currentActiveId = activeId;
-        if (currentActiveId) {
-          const updatedActive = routersList.find((r) => r.id === currentActiveId);
-          if (updatedActive) {
-            setActiveRouterState(updatedActive);
-          } else if (routersList.length > 0) {
-            setActiveRouterState(routersList[0]);
-          } else {
-            setActiveRouterState(null);
-          }
-        } else if (routersList.length > 0) {
-          setActiveRouterState(routersList[0]);
-        } else {
-          setActiveRouterState(null);
-        }
-      }
-    } catch (e) {
-      console.warn("Could not sync routers from central gateway server. Using local offline storage.", e);
+    // If a request is already in-flight, reuse it
+    if (inFlightRouterSync) {
+      return inFlightRouterSync;
     }
+    // Throttle calls within 2.5 seconds to prevent rapid hammering
+    if (Date.now() - lastSyncTimestamp < 2500) {
+      return;
+    }
+
+    inFlightRouterSync = (async () => {
+      try {
+        const normalizedUrl = url.replace(/\/+$/, "");
+        const token = await AsyncStorage.getItem("auth_token");
+        const storedName = await AsyncStorage.getItem("salesperson_name");
+        const storedUserId = await AsyncStorage.getItem("salesperson_id");
+        const allowedStr = await AsyncStorage.getItem("salesperson_allowed_camps");
+
+        // DO NOT make unauthenticated router fetch on boot if user is not logged in!
+        if (!token && !storedUserId && (!storedName || storedName === "Unknown")) {
+          setRoutersState([]);
+          setActiveRouterState(null);
+          return;
+        }
+
+        let allowedCamps: string[] = [];
+        if (allowedStr) {
+          try {
+            const parsed = JSON.parse(allowedStr);
+            if (Array.isArray(parsed)) allowedCamps = parsed.map((c) => String(c).toLowerCase());
+          } catch {}
+        }
+
+        let routerPath = "/api/mikrotik/routers?verified=true";
+        if (storedUserId) {
+          routerPath += `&salesPersonId=${encodeURIComponent(storedUserId)}`;
+        } else if (storedName && storedName !== "Unknown") {
+          routerPath += `&salesperson=${encodeURIComponent(storedName)}`;
+        }
+
+        const result = await fetchFromGateway<{ routers: MikrotikRouterConfig[] }>(
+          normalizedUrl,
+          routerPath,
+          null,
+          { method: "GET" }
+        );
+
+        if (result && Array.isArray(result.routers)) {
+          const routersList = result.routers;
+          const dynamicallyAllowed = routersList.map((r) => r.camp || r.sessionName).filter(Boolean) as string[];
+          
+          // Keep salesperson_allowed_camps updated with fresh server permissions
+          await AsyncStorage.setItem("salesperson_allowed_camps", JSON.stringify(dynamicallyAllowed));
+
+          // Only update routers state if the list actually changed (prevents cascading re-renders across all screens)
+          setRoutersState((prev) => {
+            if (prev.length === routersList.length) {
+              const isIdentical = prev.every((p, idx) => {
+                const next = routersList[idx];
+                return p.id === next.id && p.host === next.host && p.camp === next.camp && p.sessionName === next.sessionName;
+              });
+              if (isIdentical) {
+                return prev; // Maintain same reference, skipping re-renders
+              }
+            }
+            return routersList;
+          });
+
+          await AsyncStorage.setItem(STORAGE_ROUTERS, JSON.stringify(routersList));
+
+          // Sync active router details only if it changed
+          const currentActiveId = activeId;
+          setActiveRouterState((prevActive) => {
+            let nextActive: MikrotikRouterConfig | null = null;
+            if (currentActiveId) {
+              nextActive = routersList.find((r) => r.id === currentActiveId) || (routersList.length > 0 ? routersList[0] : null);
+            } else if (routersList.length > 0) {
+              nextActive = routersList[0];
+            }
+
+            if (prevActive?.id === nextActive?.id && prevActive?.host === nextActive?.host && prevActive?.sessionName === nextActive?.sessionName) {
+              return prevActive; // Maintain same reference
+            }
+            return nextActive;
+          });
+        }
+        lastSyncTimestamp = Date.now();
+      } catch (e) {
+        console.warn("Could not sync routers from central gateway server. Using local offline storage.", e);
+      } finally {
+        inFlightRouterSync = null;
+      }
+    })();
+
+    return inFlightRouterSync;
   }, []);
 
   const syncRouters = async () => {
