@@ -13,10 +13,11 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useGateway } from "../../contexts/gateway-context";
 import { ConfirmModal } from "../../components/confirm-modal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { DEFAULT_GATEWAY_URL } from "../../constants/config";
 
 export default function DashboardLayout() {
   const router = useRouter();
-  const { activeRouter, isConnected, disconnectRouter, gatewayUrl, syncRouters } = useGateway();
+  const { activeRouter, isConnected, disconnectRouter, syncRouters } = useGateway();
   const [showDisconnectModal, setShowDisconnectModal] = useState(false);
   const insets = useSafeAreaInsets();
 
@@ -29,7 +30,6 @@ export default function DashboardLayout() {
         const storedUser = await AsyncStorage.getItem("salesperson_name");
         const storedUserId = await AsyncStorage.getItem("salesperson_id");
         const token = await AsyncStorage.getItem("auth_token");
-        const storedGateway = await AsyncStorage.getItem("mikrotik_gateway_url") || gatewayUrl;
 
         if (!storedUser || storedUser === "Unknown") {
           if (Platform.OS === "web") {
@@ -41,13 +41,12 @@ export default function DashboardLayout() {
         }
 
         // Live check against /api/mikrotik/auth/profile
-        if (storedGateway) {
-          const cleanBase = storedGateway.trim().replace(/\/+$/, "");
-          let checkUrl = `${cleanBase}/api/mikrotik/auth/profile?`;
-          if (storedUserId) checkUrl += `userId=${encodeURIComponent(storedUserId)}`;
-          else checkUrl += `username=${encodeURIComponent(storedUser)}`;
+        const cleanBase = DEFAULT_GATEWAY_URL.replace(/\/+$/, "");
+        let checkUrl = `${cleanBase}/api/mikrotik/auth/profile?`;
+        if (storedUserId) checkUrl += `userId=${encodeURIComponent(storedUserId)}`;
+        else checkUrl += `username=${encodeURIComponent(storedUser)}`;
 
-          const res = await fetch(checkUrl, {
+        const res = await fetch(checkUrl, {
             headers: {
               "Content-Type": "application/json",
               ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -101,7 +100,6 @@ export default function DashboardLayout() {
                   void syncRouters();
                 }
               }
-            }
           }
         }
       } catch {
@@ -120,7 +118,7 @@ export default function DashboardLayout() {
       isMounted = false;
       clearInterval(interval);
     };
-  }, [gatewayUrl]);
+  }, []);
 
   // Reactively navigate back to login when disconnected.
   useEffect(() => {

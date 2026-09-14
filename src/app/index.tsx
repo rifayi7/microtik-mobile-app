@@ -58,17 +58,11 @@ export default function GatewayScreen() {
           const storedUser = await AsyncStorage.getItem("salesperson_name");
           const storedUserId = await AsyncStorage.getItem("salesperson_id");
           const token = await AsyncStorage.getItem("auth_token");
-          let activeGateway = (await AsyncStorage.getItem("mikrotik_gateway_url")) || gatewayUrl || DEFAULT_GATEWAY_URL;
-          if (!activeGateway || activeGateway.includes("localhost") || activeGateway.includes("127.0.0.1")) {
-            activeGateway = DEFAULT_GATEWAY_URL;
-            await AsyncStorage.setItem("mikrotik_gateway_url", DEFAULT_GATEWAY_URL);
-          }
+          await AsyncStorage.removeItem("mikrotik_gateway_url");
 
           if (storedUser && storedUser !== "Unknown") {
-            // Verify session validity against server before navigating
             try {
-              const cleanBase = activeGateway.trim().replace(/\/+$/, "");
-              let checkUrl = `${cleanBase}/api/mikrotik/auth/profile?`;
+              let checkUrl = `${DEFAULT_GATEWAY_URL}/api/mikrotik/auth/profile?`;
               if (storedUserId) checkUrl += `userId=${encodeURIComponent(storedUserId)}`;
               else checkUrl += `username=${encodeURIComponent(storedUser)}`;
 
@@ -113,7 +107,7 @@ export default function GatewayScreen() {
             }
             if (isMounted) {
               setCurrentUser(storedUser);
-              void connectToGateway(activeGateway, token || undefined, allowedCamps);
+              void connectToGateway(DEFAULT_GATEWAY_URL, token || undefined, allowedCamps);
               router.replace("/(dashboard)/dashboard-main");
             }
           } else {
@@ -148,8 +142,6 @@ export default function GatewayScreen() {
 
     setIsLoggingIn(true);
     try {
-      // 1. Verify credentials against central database
-      const activeUrl = gatewayUrl || DEFAULT_GATEWAY_URL;
       const result = await fetchFromGateway<{
         success: boolean;
         token?: string;
@@ -163,7 +155,7 @@ export default function GatewayScreen() {
         };
         error?: string;
       }>(
-        activeUrl,
+        DEFAULT_GATEWAY_URL,
         "/api/mikrotik/auth/login",
         null,
         {
@@ -206,7 +198,7 @@ export default function GatewayScreen() {
         setLoginError(null);
 
         try {
-          await connectToGateway(activeUrl, result.token, result.user.allowedCamps);
+          await connectToGateway(DEFAULT_GATEWAY_URL, result.token, result.user.allowedCamps);
         } catch (e) {
           console.warn("Auto gateway connect warning:", e);
         }

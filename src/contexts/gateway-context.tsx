@@ -144,17 +144,9 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     async function loadStorage() {
       try {
-        const savedGateway = await AsyncStorage.getItem(STORAGE_GATEWAY_URL);
-        let normalizedUrl = DEFAULT_GATEWAY_URL;
-        
-        // If storage has old localhost/127.0.0.1 or is empty, automatically update to DEFAULT_GATEWAY_URL
-        if (!savedGateway || savedGateway.includes("localhost") || savedGateway.includes("127.0.0.1")) {
-          normalizedUrl = DEFAULT_GATEWAY_URL;
-          await AsyncStorage.setItem(STORAGE_GATEWAY_URL, DEFAULT_GATEWAY_URL);
-        } else {
-          normalizedUrl = savedGateway.replace(/\/+$/, "");
-        }
-        setGatewayState(normalizedUrl);
+        // Enforce DEFAULT_GATEWAY_URL as the single source of truth
+        setGatewayState(DEFAULT_GATEWAY_URL);
+        await AsyncStorage.removeItem(STORAGE_GATEWAY_URL);
 
         const storedUser = await AsyncStorage.getItem("salesperson_name");
         const storedToken = await AsyncStorage.getItem("auth_token");
@@ -190,8 +182,8 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
         }
 
         // Proactively sync routers from server on boot ONLY IF user is logged in
-        if (normalizedUrl && isLoggedIn) {
-          void syncRoutersFromServer(normalizedUrl, savedActiveId || null);
+        if (isLoggedIn) {
+          void syncRoutersFromServer(DEFAULT_GATEWAY_URL, savedActiveId || null);
         }
       } catch (e) {
         console.error("Failed to load gateway config", e);
@@ -203,9 +195,8 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
   }, [syncRoutersFromServer]);
 
   const setGatewayUrl = async (url: string) => {
-    const normalized = url.replace(/\/+$/, "");
+    const normalized = (url || DEFAULT_GATEWAY_URL).replace(/\/+$/, "");
     setGatewayState(normalized);
-    await AsyncStorage.setItem(STORAGE_GATEWAY_URL, normalized);
     await syncRoutersFromServer(normalized, activeRouter?.id || null);
   };
 
@@ -339,9 +330,8 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
       const payload = await response.json();
       let routersList: MikrotikRouterConfig[] = payload.routers || [];
 
-      // Save gateway URL
+      // Set gateway state
       setGatewayState(cleanUrl);
-      await AsyncStorage.setItem(STORAGE_GATEWAY_URL, cleanUrl);
 
       // Save routers list
       setRoutersState(routersList);

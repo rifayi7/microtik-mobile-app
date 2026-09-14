@@ -29,6 +29,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useGateway } from "../../contexts/gateway-context";
 import { fetchFromGateway } from "../../lib/api-client";
+import { DEFAULT_GATEWAY_URL } from "../../constants/config";
 
 interface SalesLog {
   code: string;
@@ -49,6 +50,7 @@ export default function HistoryScreen() {
   const [logs, setLogs] = useState<SalesLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [salesperson, setSalesperson] = useState("Unknown");
   const [companyTimezone, setCompanyTimezone] = useState("Asia/Dubai");
@@ -135,6 +137,8 @@ export default function HistoryScreen() {
     if (!isRefresh) {
       setLoading(true);
       setLogs([]); // Clear previous logs immediately so stale data does not flash
+    } else {
+      setIsSyncing(true);
     }
     setError(null);
 
@@ -189,7 +193,7 @@ export default function HistoryScreen() {
       }
 
       const payload = await fetchFromGateway<{ success: boolean; sales: SalesLog[] }>(
-        gatewayUrl,
+        DEFAULT_GATEWAY_URL,
         "/api/mikrotik/reports",
         null, // Pass null so history fetches across ALL camps
         {
@@ -214,8 +218,9 @@ export default function HistoryScreen() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setIsSyncing(false);
     }
-  }, [gatewayUrl, salesperson, dateFilter, search, customStartDate, customEndDate]);
+  }, [salesperson, dateFilter, search, customStartDate, customEndDate, companyTimezone]);
 
   useFocusEffect(
     useCallback(() => {
@@ -532,6 +537,14 @@ export default function HistoryScreen() {
           </View>
         </View>
       </View>
+
+      {/* Subtle Background Sync Indicator */}
+      {isSyncing && !loading && (
+        <View style={styles.syncingBanner}>
+          <ActivityIndicator size="small" color="#DC2626" style={{ marginRight: 8 }} />
+          <Text style={styles.syncingText}>Checking for latest recharges...</Text>
+        </View>
+      )}
 
       {/* Log List View */}
       {loading && !refreshing ? (
@@ -1231,5 +1244,20 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 12,
     fontWeight: "700",
+  },
+  syncingBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FEF2F2",
+    borderBottomWidth: 1,
+    borderBottomColor: "#FEE2E2",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  syncingText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#DC2626",
   },
 });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
 import {
   StyleSheet,
@@ -13,9 +13,9 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Bell, Wifi, Building2, Wallet, Receipt, ChevronRight } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useGateway } from "../../contexts/gateway-context";
 import { fetchFromGateway } from "../../lib/api-client";
 import { NotificationModal } from "../../components/notification-modal";
+import { DEFAULT_GATEWAY_URL } from "../../constants/config";
 
 interface SalespersonStats {
   totalRevenue: number;
@@ -43,7 +43,6 @@ interface CollectionItem {
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const { gatewayUrl, syncRouters } = useGateway();
   const [salesperson, setSalesperson] = useState("Unknown");
   const [displayName, setDisplayName] = useState("Salesperson");
   const [summaryList, setSummaryList] = useState<any[]>([]);
@@ -68,6 +67,7 @@ export default function DashboardScreen() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadNotifsCount, setUnreadNotifsCount] = useState(0);
+  const isLoadingSummaryRef = useRef(false);
 
   const loadNotifications = useCallback(async (_currentSalesperson?: string) => {
     // Notification fetching disabled per configuration
@@ -75,6 +75,8 @@ export default function DashboardScreen() {
   }, []);
 
   const loadSummaryData = useCallback(async (currentSalesperson?: string, isRefresh = false) => {
+    if (isLoadingSummaryRef.current) return;
+    isLoadingSummaryRef.current = true;
     if (!isRefresh) setLoading(true);
     setError(null);
 
@@ -92,30 +94,14 @@ export default function DashboardScreen() {
         overallStats?: OverallStats;
         lastCollections?: CollectionItem[];
       }>(
-        gatewayUrl,
+        DEFAULT_GATEWAY_URL,
         urlQuery,
         null,
         { method: "GET" }
       );
-      // Double check allowed camps filter client-side
-      const allowedCampsStr = await AsyncStorage.getItem("salesperson_allowed_camps");
-      let allowedCampsList: string[] = [];
-      if (allowedCampsStr) {
-        try {
-          const parsed = JSON.parse(allowedCampsStr);
-          if (Array.isArray(parsed)) allowedCampsList = parsed.map((c) => String(c).toLowerCase());
-        } catch {}
-      }
 
-      let filteredData = payload.data || [];
-      if (allowedCampsStr !== null) {
-        filteredData = filteredData.filter((item) => {
-          const cName = String(item.campName || "").toLowerCase();
-          return allowedCampsList.includes(cName);
-        });
-      }
-
-      setSummaryList(filteredData);
+      // Backend API already scopes data strictly to the salesperson's authorized camps
+      setSummaryList(payload.data || []);
       if (payload.userStats) setUserStats(payload.userStats);
       if (payload.overallStats) setOverallStats(payload.overallStats);
       if (payload.lastCollections) setLastCollections(payload.lastCollections);
@@ -127,11 +113,13 @@ export default function DashboardScreen() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+      isLoadingSummaryRef.current = false;
     }
-  }, [gatewayUrl, salesperson, loadNotifications]);
+  }, [salesperson, loadNotifications]);
 
   useFocusEffect(
     useCallback(() => {
+      let isMounted = true;
       async function refreshOnFocus() {
         try {
           const name = await AsyncStorage.getItem("salesperson_name");
@@ -140,16 +128,20 @@ export default function DashboardScreen() {
             return;
           }
           const dName = await AsyncStorage.getItem("salesperson_display_name");
-          setSalesperson(name);
-          setDisplayName(dName || name);
+          if (isMounted) {
+            setSalesperson(name);
+            setDisplayName(dName || name);
+          }
           await loadSummaryData(name, true);
-          void syncRouters();
         } catch {
-          router.replace("/");
+          if (isMounted) router.replace("/");
         }
       }
       void refreshOnFocus();
-    }, [loadSummaryData, router, syncRouters])
+      return () => {
+        isMounted = false;
+      };
+    }, [loadSummaryData, router])
   );
 
   const onRefresh = () => {

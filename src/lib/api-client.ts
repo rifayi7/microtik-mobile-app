@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { DEFAULT_GATEWAY_URL } from "../constants/config";
 
 export interface MikrotikRouterConfig {
   id: string;
@@ -27,7 +28,10 @@ export async function fetchFromGateway<T>(
     timeoutMs?: number;
   } = {}
 ): Promise<T> {
-  const normalizedBase = gatewayUrl.trim().replace(/\/$/, "");
+  let normalizedBase = (gatewayUrl || "").trim().replace(/\/$/, "");
+  if (!normalizedBase || normalizedBase.includes("localhost") || normalizedBase.includes("127.0.0.1")) {
+    normalizedBase = DEFAULT_GATEWAY_URL.replace(/\/$/, "");
+  }
   const fullUrl = `${normalizedBase}${path}`;
 
   const requestBody: Record<string, any> = {
