@@ -51,6 +51,9 @@ All tenant entities in the LinkFi ecosystem are bound together strictly using **
    - Stores login access for managers, auditors, and company accountants to view the **Sales Report Portal**.
    - Accessible and configurable **strictly by Super Administrators** via the Web Admin Portal (`/admin` -> `Report Viewers`).
    - Fields: `id`, `username`, `password`, `display_name`, `company_id` (FK to `companies.id`), `company_name`, `allowed_camp_ids` (JSON), `status` (1 = active, 0 = paused).
+   - **ID-Centric Camp Scoping**:
+     - Permissions in `allowed_camp_ids` are strictly bound to permanent Hardware Router IDs (`router-[serialNumber]`).
+     - Camp display names, hotspot names, and company metadata are resolved dynamically from the `routers` table by ID, ensuring that renaming a camp never breaks permissions or inflates assigned camp counts.
    - **Pause & Resume Enforcement**:
      - Super Administrators can pause any report viewer directly via the "Pause" action button or during user edit.
      - When paused (`status = 0`), active logged-in sessions in the Sales Report Portal are immediately terminated (logged out via 5s background session validator and API 403 interceptors).
