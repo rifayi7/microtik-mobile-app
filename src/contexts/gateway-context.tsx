@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { fetchFromGateway, type MikrotikRouterConfig } from "../lib/api-client";
 import { DEFAULT_GATEWAY_URL } from "../constants/config";
@@ -136,9 +136,9 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
     return inFlightRouterSync;
   }, []);
 
-  const syncRouters = async () => {
+  const syncRouters = useCallback(async () => {
     await syncRoutersFromServer(gatewayUrl, activeRouter?.id || null);
-  };
+  }, [syncRoutersFromServer, gatewayUrl, activeRouter?.id]);
 
   // Load configuration from AsyncStorage on mount
   useEffect(() => {
@@ -354,24 +354,24 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const contextValue = useMemo(() => ({
+    gatewayUrl,
+    routers,
+    activeRouter,
+    isConnected: !!gatewayUrl,
+    loading,
+    setGatewayUrl,
+    syncRouters,
+    addRouter,
+    updateRouter,
+    deleteRouter,
+    connectRouter,
+    disconnectRouter,
+    connectToGateway,
+  }), [gatewayUrl, routers, activeRouter, loading, setGatewayUrl, syncRouters, addRouter, updateRouter, deleteRouter, connectRouter, disconnectRouter, connectToGateway]);
+
   return (
-    <GatewayContext.Provider
-      value={{
-        gatewayUrl,
-        routers,
-        activeRouter,
-        isConnected: !!gatewayUrl,
-        loading,
-        setGatewayUrl,
-        syncRouters,
-        addRouter,
-        updateRouter,
-        deleteRouter,
-        connectRouter,
-        disconnectRouter,
-        connectToGateway,
-      }}
-    >
+    <GatewayContext.Provider value={contextValue}>
       {children}
     </GatewayContext.Provider>
   );

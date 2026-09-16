@@ -8,7 +8,7 @@ import {
   Ticket,
   MoreHorizontal,
 } from "lucide-react-native";
-import { Platform, StyleSheet, Text, Pressable, Alert } from "react-native";
+import { Platform, StyleSheet, Text, Pressable, Alert, AppState } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useGateway } from "../../contexts/gateway-context";
 import { ConfirmModal } from "../../components/confirm-modal";
@@ -24,8 +24,11 @@ export default function DashboardLayout() {
   // Auth guard: Ensure operator is logged in and valid in database
   useEffect(() => {
     let isMounted = true;
+    let isRequestInFlight = false;
 
     async function verifyAuthAndSession() {
+      if (isRequestInFlight) return; // Prevent stacking requests on slow networks
+      isRequestInFlight = true;
       try {
         const storedUser = await AsyncStorage.getItem("salesperson_name");
         const storedUserId = await AsyncStorage.getItem("salesperson_id");
@@ -103,16 +106,20 @@ export default function DashboardLayout() {
           }
         }
       } catch {
-        // Fallback network error
+        // Fallback network error — don't crash the app
+      } finally {
+        isRequestInFlight = false;
       }
     }
 
     void verifyAuthAndSession();
 
-    // Periodic live session polling every 10 seconds
+    // Periodic live session polling every 15 seconds — only when app is in foreground
     const interval = setInterval(() => {
-      void verifyAuthAndSession();
-    }, 10000);
+      if (AppState.currentState === "active") {
+        void verifyAuthAndSession();
+      }
+    }, 15000);
 
     return () => {
       isMounted = false;
