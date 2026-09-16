@@ -181,7 +181,7 @@ All tenant entities in the LinkFi ecosystem are bound together strictly using **
       - **Outstanding Balance**: `TOTAL SALES` (representing the all-time full sold unit count across all authorized camps for the user) and `AED` (the all-time full sold revenue across those authorized camps, independent of temporary date range filters).
       - **Today's Sale Card**: `TOTAL COUNT` and individual camp sales badges
       - **Company - Monthly Sales Analysis**: `SALES COUNT` & `PREV COUNT`
-      - **Today Camps Sales Carousel**: `Vouchers Count` & `Sale Amount` dynamically and strictly scoped to active camps that had sales today (`salesCount > 0` or `revenue > 0`) within the user's authorized/allowed camps. Automatically rotates through each active camp when 2 or more camps have sales today, presents a focused single card if only 1 camp is active, or cleanly indicates "No camp sales recorded today" when 0 sales occurred.
+      - **Today Camps Sales Carousel**: `Vouchers Count` & `Sale Amount` strictly scoped to all authorized/allowed camps for the user. Automatically rotates through every assigned camp (even if 0 sales were recorded today) so operators can inspect today's performance across all their camps. When 2 or more camps are assigned, it auto-slides every 3.5 seconds with navigation dots and prev/next controls, or presents a focused single card if only 1 camp is assigned.
       - **This Month Sales Card**: `COUNT`
       - **Last Month Sale Card**: `SALE COUNT` and Collections
     - Numeric values are cleanly formatted using `formatCount` (rendering whole units like `1` or `2` without decimals, and fractional units like `0.5` or `1.5` with 1 decimal).
