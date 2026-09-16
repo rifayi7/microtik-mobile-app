@@ -50,7 +50,11 @@ All tenant entities in the LinkFi ecosystem are bound together strictly using **
 2. **`report_users`**:
    - Stores login access for managers, auditors, and company accountants to view the **Sales Report Portal**.
    - Accessible and configurable **strictly by Super Administrators** via the Web Admin Portal (`/admin` -> `Report Viewers`).
-   - Fields: `id`, `username`, `password`, `display_name`, `company_id` (FK to `companies.id`), `company_name`, `allowed_camp_ids` (JSON), `status` (1 = active, 0 = disabled).
+   - Fields: `id`, `username`, `password`, `display_name`, `company_id` (FK to `companies.id`), `company_name`, `allowed_camp_ids` (JSON), `status` (1 = active, 0 = paused).
+   - **Pause & Resume Enforcement**:
+     - Super Administrators can pause any report viewer directly via the "Pause" action button or during user edit.
+     - When paused (`status = 0`), active logged-in sessions in the Sales Report Portal are immediately terminated (logged out via 5s background session validator and API 403 interceptors).
+     - Paused users are strictly blocked from logging in with HTTP 403 (`"Your account is paused by the administrator. Access is disabled until resumed."`) until the Super Administrator clicks "Resume" (`status = 1`).
 3. **`sales_persons` (Salespeople & Mobile POS Operators)**:
    - Identifies POS salespeople bound to specific companies and authorized camps/routers.
    - Fields: `id`, `username`, `display_name`, `password`, `company_id` (FK to `companies.id`), `company_name`, `allowed_camps` (JSON Array), `allowed_router_ids` (JSON Array of router IDs).
@@ -108,8 +112,6 @@ All tenant entities in the LinkFi ecosystem are bound together strictly using **
 3. **Instant Reactivation**:
    - Toggling back to **Activate** restores all company services, sales POS, and admin access instantly in real-time.
 
-
-
 ---
 
 ## 🛡️ Super Administrator Dynamic Management & Bootstrap Architecture
@@ -149,6 +151,10 @@ All tenant entities in the LinkFi ecosystem are bound together strictly using **
      - `POST /api/mikrotik/vouchers/list`: Denies voucher listing with HTTP 403.
    - **Sales & Accounting Portal**:
      - Summary metrics, comparison cards, and voucher sales lists evaluate to `1 = 0`, returning `0 sales`, `0 revenue`, and `[]` empty camp lists.
+6. **10-Minute Idle Inactivity Auto-Logout (Web Portals)**:
+   - Both web applications (`microtik` admin web app and `microtik-sales-report` portal) enforce an automated 10-minute client-side inactivity security policy.
+   - User interactions (`mousedown`, `keydown`, `scroll`, `touchstart`, `mousemove`) update a throttled activity timestamp in storage.
+   - Active 5-second watchdog timers and session restore guards continuously evaluate idle time; when inactivity reaches 10 minutes (600,000 ms), the session is terminated immediately, stored tokens are wiped, and the user is routed to the login interface with a notification.
 
 ---
 
@@ -163,8 +169,24 @@ All tenant entities in the LinkFi ecosystem are bound together strictly using **
      - `validity: 15` (Default Price: 16 AED, Unit: 0.5)
      - `validity: 30` (Default Price: 32 AED, Unit: 1.0)
    - Super Administrators can subsequently modify prices, units, toggle active/inactive status, or add additional validity tiers (e.g. 7 days, 10 days) from the Super Admin Pricing dashboard.
-3. **Dynamic Sales Count Calculation**:
-   - Sales counts across the Mobile POS, Web Dashboard, and Sales Reports are dynamically computed by joining with `camp_validity_pricing.unit` and `validity_profiles.unit_weight` instead of hardcoded numbers, ensuring custom validity plans reflect accurately in metrics.
+3. **Dynamic Sales Count Calculation & Dashboard UI**:
+   - Sales counts across the Mobile POS, Web Dashboard, and Sales Reports are dynamically computed by joining with `camp_validity_pricing.unit` and `validity_profiles.unit_weight` (with fallback `15-Days` = 0.5, `30-Days` = 1.0) instead of raw `COUNT(*)` voucher counts:
+     ```sql
+     COALESCE(cvp.unit, vp.unit_weight, CASE WHEN v.validity_days = 30 THEN 1.0 WHEN v.validity_days = 15 THEN 0.5 WHEN v.validity_days = 7 THEN 0.25 ELSE CAST(v.validity_days AS REAL) / 30.0 END)
+     ```
+   - On the **Sales Report Web Dashboard (`microtik-sales-report`)**, the weighted calculation is applied across:
+      - **Outstanding Balance**: `TOTAL SALES` (representing the all-time full sold unit count across all authorized camps for the user) and `AED` (the all-time full sold revenue across those authorized camps, independent of temporary date range filters).
+      - **Today's Sale Card**: `TOTAL COUNT` and individual camp sales badges
+      - **Company - Monthly Sales Analysis**: `SALES COUNT` & `PREV COUNT`
+      - **Today Camps Sales Carousel**: `Vouchers Count` & `Sale Amount` dynamically and strictly scoped to active camps that had sales today (`salesCount > 0` or `revenue > 0`) within the user's authorized/allowed camps. Automatically rotates through each active camp when 2 or more camps have sales today, presents a focused single card if only 1 camp is active, or cleanly indicates "No camp sales recorded today" when 0 sales occurred.
+      - **This Month Sales Card**: `COUNT`
+      - **Last Month Sale Card**: `SALE COUNT` and Collections
+    - Numeric values are cleanly formatted using `formatCount` (rendering whole units like `1` or `2` without decimals, and fractional units like `0.5` or `1.5` with 1 decimal).
+    - **Revenue Price Fallback**: In all summary calculations and sales ledgers, voucher revenue evaluates `COALESCE(v.price_charged, cvp.price, CASE WHEN v.validity_days = 30 THEN 32 ELSE 16 END)` so vouchers without an explicit `price_charged` accurately derive their value from `camp_validity_pricing` or validity standards.
+    - **Three Sales Subsections (`microtik-sales-report`)**:
+      - **1. Voucher Sales (`voucher-sales`)**: Live paginated sales ledger with real-time dynamic pricing fallback, customer mobile, salesperson, camp/hotspot identification, and CSV export.
+      - **2. Monthly Voucher Sales (`monthly-sales`)**: Dynamic month picker and camp dropdown with live aggregated `Total` unit count and `Amount` (AED) summary pills and daily sales volume bar chart.
+      - **3. Camps - Monthly Voucher Sales (`sales-chart`)**: Multi-month retrospective comparison chart dynamically mapping sales across camps within the selected window, resolving camp names against `campsList`, and supporting stacked/grouped visualizations.
 
 ---
 
@@ -180,5 +202,20 @@ All tenant entities in the LinkFi ecosystem are bound together strictly using **
    - If an operator taps "Recharge" again after a temporary client timeout or network glitch while the server was completing the transaction, the API returns the already redeemed voucher with `{ success: true, alreadyCompleted: true }`, completely preventing double-billing or burning duplicate inventory.
 3. **Network Timeouts**:
    - Mobile app network client timeout is configured to 30,000ms (30s) to accommodate cellular data latencies, MikroTik TCP socket establishment, and serverless cold starts.
+
+---
+
+## ⏱️ Dynamic Company Timezone & MikroTik User Comment Formatting
+
+1. **Company-Scoped Timezone Resolution**:
+   - Every client company configures an authoritative `timezone` in `companies.timezone` (e.g. `Asia/Dubai`, `Asia/Riyadh`, `Asia/Kolkata`). Default: `Asia/Dubai`.
+   - When a voucher is sold / redeemed via `POST /api/mikrotik/vouchers/redeem`, the system dynamically resolves the target timezone by querying the router's assigned company (`routers.company_id -> companies.timezone`), with fallback to the operator's company (`sales_persons.company_id -> companies.timezone`).
+2. **Winbox Hotspot User Comment Format**:
+   - The user comment written to MikroTik RouterOS (`/ip/hotspot/user/set =comment=...`) includes both the date and exact time with 12-hour AM/PM formatting in the company's assigned timezone:
+     ```text
+     Sold on DD/MM/YYYY, h:mm A
+     ```
+   - Examples: `Sold on 16/09/2026, 9:14 AM` (for `Asia/Dubai`) or `Sold on 16/09/2026, 8:14 AM` (for `Asia/Riyadh`).
+   - Ensures network engineers inspecting RouterOS directly in Winbox see the precise local activation timestamp without timezone discrepancies.
 
 
