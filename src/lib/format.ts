@@ -21,6 +21,27 @@ export function formatDate(date: string): string {
   }
 }
 
+export function formatDateDDMMYYYY(raw?: string): string {
+  if (!raw) return "";
+  try {
+    const d = new Date(raw);
+    if (isNaN(d.getTime())) return raw;
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const year = d.getFullYear();
+
+    let hours = d.getHours();
+    const minutes = String(d.getMinutes()).padStart(2, "0");
+    const ampm = hours >= 12 ? "PM" : "AM";
+    hours = hours % 12 || 12;
+    const strHours = String(hours).padStart(2, "0");
+
+    return `${day}/${month}/${year}, ${strHours}:${minutes} ${ampm}`;
+  } catch {
+    return raw;
+  }
+}
+
 export function formatBytes(value: string | number | undefined): string {
   const bytes = Number(value ?? 0);
   if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";

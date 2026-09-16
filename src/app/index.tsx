@@ -27,6 +27,7 @@ import {
     View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Svg, { Defs, LinearGradient, Path, Stop } from "react-native-svg";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useGateway } from "../contexts/gateway-context";
 import { fetchFromGateway, type MikrotikRouterConfig } from "../lib/api-client";
@@ -227,15 +228,19 @@ export default function GatewayScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.containerWhite}>
+    <SafeAreaView style={styles.containerWhite} edges={["top", "left", "right"]}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-      <ScrollView contentContainerStyle={styles.loginScrollContainer} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={styles.loginScrollContainer}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.loginContentWrapper}>
           {/* Brand Logo */}
           <View style={styles.brandLogoContainer}>
             <Image
               source={require("../../assets/images/app-logo.png")}
-              style={{ width: 90, height: 90, marginBottom: 8, borderRadius: 18 }}
+              style={styles.brandLogoImage}
               resizeMode="contain"
             />
           </View>
@@ -309,6 +314,44 @@ export default function GatewayScreen() {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Dubai Skyline & Bottom Curved Wave Banner */}
+        <View style={styles.bottomGraphicContainer}>
+          <Image
+            source={require("../../assets/images/dubai-skyline.png")}
+            style={styles.skylineImage}
+            resizeMode="cover"
+          />
+          <View style={styles.waveOverlayContainer} pointerEvents="none">
+            <Svg width="100%" height={90} viewBox="0 0 400 90" preserveAspectRatio="none">
+              <Defs>
+                <LinearGradient id="redWaveGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <Stop offset="0%" stopColor="#dc2626" />
+                  <Stop offset="100%" stopColor="#b91c1c" />
+                </LinearGradient>
+              </Defs>
+              {/* Dark Navy accent curve */}
+              <Path
+                d="M -5 26 C 110 52, 230 76, 405 46"
+                stroke="#0f172a"
+                strokeWidth={3.5}
+                fill="none"
+              />
+              {/* White separator curve */}
+              <Path
+                d="M -5 30 C 110 56, 230 80, 405 50"
+                stroke="#ffffff"
+                strokeWidth={2.5}
+                fill="none"
+              />
+              {/* Red wave fill */}
+              <Path
+                d="M -5 32 C 110 58, 230 82, 405 52 L 405 90 L -5 90 Z"
+                fill="url(#redWaveGrad)"
+              />
+            </Svg>
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -322,16 +365,22 @@ const styles = StyleSheet.create({
   loginScrollContainer: {
     flexGrow: 1,
     backgroundColor: "#ffffff",
+    justifyContent: "space-between",
     paddingBottom: 0,
   },
   loginContentWrapper: {
-    paddingHorizontal: 24,
-    paddingTop: 30,
+    paddingHorizontal: 28,
+    paddingTop: 36,
     alignItems: "center",
+    width: "100%",
   },
   brandLogoContainer: {
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 10,
+  },
+  brandLogoImage: {
+    width: 120,
+    height: 120,
   },
   logoIconBg: {
     width: 50,
@@ -358,18 +407,19 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   loginWelcomeText: {
-    fontSize: 20,
-    color: "#1E293B",
-    marginBottom: 16,
-    fontWeight: "500",
+    fontSize: 22,
+    color: "#0f172a",
+    marginBottom: 20,
+    fontWeight: "600",
+    textAlign: "center",
   },
   loginWelcomeStaff: {
     fontWeight: "bold",
-    color: "#DC2626",
+    color: "#d91b24",
   },
   loginFormCard: {
     width: "100%",
-    maxWidth: 360,
+    maxWidth: 340,
   },
   loginErrorBanner: {
     backgroundColor: "#FEF2F2",
@@ -390,16 +440,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#ffffff",
-    borderRadius: 10,
-    borderWidth: 1,
+    borderRadius: 12,
+    borderWidth: 1.2,
     borderColor: "#E2E8F0",
     paddingHorizontal: 16,
-    height: 50,
-    marginBottom: 12,
+    height: 52,
+    marginBottom: 14,
     shadowColor: "#0F172A",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.03,
-    shadowRadius: 2,
+    shadowRadius: 3,
     elevation: 1,
   },
   inputLight: {
@@ -418,23 +468,42 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   loginButtonRed: {
-    backgroundColor: "#DC2626",
+    backgroundColor: "#d91b24",
     height: 50,
-    borderRadius: 8,
+    borderRadius: 10,
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 8,
-    shadowColor: "#DC2626",
+    marginTop: 6,
+    shadowColor: "#d91b24",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 4,
   },
   loginButtonText: {
     color: "#ffffff",
     fontWeight: "bold",
     fontSize: 16,
-    letterSpacing: 0.5,
+    letterSpacing: 1,
+  },
+  bottomGraphicContainer: {
+    width: "100%",
+    position: "relative",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    marginTop: 16,
+    overflow: "hidden",
+  },
+  skylineImage: {
+    width: "100%",
+    height: 240,
+  },
+  waveOverlayContainer: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 90,
   },
   illustrationContainer: {
     width: "100%",

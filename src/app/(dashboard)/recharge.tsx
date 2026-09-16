@@ -30,7 +30,7 @@ import Svg, { Path } from "react-native-svg";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useGateway } from "../../contexts/gateway-context";
 import { fetchFromGateway } from "../../lib/api-client";
-import { formatCurrency } from "../../lib/format";
+import { formatCurrency, formatDateDDMMYYYY } from "../../lib/format";
 import { NotificationModal } from "../../components/notification-modal";
 
 interface PlanGroup {
@@ -554,7 +554,7 @@ export default function RechargeScreen() {
                     setCustomerHistory(histRes.sales.map((s) => ({
                       code: s.code,
                       validity: s.validity,
-                      timestamp: s.timestamp || s.formattedTime || "",
+                      timestamp: formatDateDDMMYYYY(s.timestamp || s.formattedTime || ""),
                       campName: s.campName,
                       price: s.price,
                     })));
